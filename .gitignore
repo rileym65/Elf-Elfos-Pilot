@@ -1,0 +1,8 @@
+pilot
+*.prg
+*.lst
+bios.inc
+build.num
+kernel.inc
+date.inc
+build.inc
