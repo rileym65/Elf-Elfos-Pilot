@@ -1127,11 +1127,59 @@ eval_4:    ldn     r8                  ; get character
            plo     r9
            ldn     r9
            lbz     eval_dn             ; jump if no open parens
-
-
-
-
-
+           smi     1                   ; remove one open parens
+           str     r9                  ; write it back
+eval_4_a:  ldi     low numtokens       ; need number of tokens
+           plo     r9
+           ldn     r9
+           smi     3                   ; is it >= 3
+           lbnf    eval_4_z            ; jump if not
+           glo     rb                  ; point two tokens back
+           smi     6
+           plo     rf
+           ghi     rb
+           smbi    0
+           phi     rf
+           ldn     rf                  ; retrieve the type
+           smi     OP_OP               ; is it an open parens
+           lbz     eval_4_b            ; jump if so
+           ldn     rf                  ; retrieve type
+           ani     0f0h                ; keep only high nybble
+           lbz     eval_4_b            ; jump if not operator
+           sep     scall               ; execute a reduce
+           dw      reduce
+           lbr     eval_4_a            ; loop until no more reductions
+eval_4_b:  ldi     low numtokens       ; point to numtokens
+           plo     r9
+           ldn     r9
+           smi     2                   ; check for 2 or more tokens
+           lbdf    eval_4_z            ; jump if 2 or more
+           sep     scall               ; otherwise display error
+           dw      o_inmsg
+           db      'Expression error: ',0
+           lbr     errline
+eval_4_z:  dec     rb                  ; decrement stack pointer
+           mov     rf,rb               ; make a copy of stack pointer
+           dec     rf                  ; move to prior token
+           dec     rf
+           dec     rf
+           ldn     rb                  ; copy token to prior token
+           str     rf
+           dec     rb
+           dec     rf
+           ldn     rb                  ; copy token to prior token
+           str     rf
+           dec     rb
+           dec     rf
+           ldn     rb                  ; copy token to prior token
+           str     rf
+           ldi     low numtokens       ; point to numtokens
+           plo     r9
+           ldn     r9                  ; decrement count
+           smi     1
+           str     r9
+           inc     r8                  ; move past close parens
+           lbr     eval_lp             ; and then keep processing
 ; ***** Check for space *****
 eval_5:    ldn     r8                  ; get character
            smi     ' '                 ; see if space
