@@ -482,77 +482,10 @@ crlf:      sep     scall
 
 progend:   lbr     o_wrmboot           ; return to Elf/OS
 
-; ************************************************************
-; ***** Find line with label in R8 and jump to that line *****
-; ************************************************************
-findline:  mov     rf,program          ; point to beginning of program
-findlp:    ldn     rf                  ; get line size
-           lbz     findno              ; jump if label not found
-           inc     rf                  ; move to first byte
-           ldn     rf                  ; see if first byte is a label
-           smi     '*'
-           lbnz    find1               ; jump if not
-           sep     scall               ; compare labels
-           dw      strcmp
-           lbdf    findy               ; jump if match
-find1:     dec     rf                  ; move back to size byte
-           ldn     rf                  ; get size byte
-           str     r2                  ; store for add
-           glo     rf                  ; and add to line address
-           add
-           plo     rf
-           ghi     rf
-           adci    0
-           phi     rf
-           lbr     findlp              ; check next line
-findy:     dec     rf                  ; move back to size byte
-           mov     r7,rf               ; and set program counter
-           lbr     runloop             ; and continue execution
-findno:    sep     scall               ; print error
-           dw      o_inmsg
-           db      'Label not found: ',0
-           lbr     errline             ; and print line
-
-; *****************************************
-; ***** Compare strings               *****
-; ***** R8 - String 1                 *****
-; ***** RF - String 2                 *****
-; ***** Returns: DF=1 - strings match *****
-; *****          DF=0 - No match      *****
-; *****************************************
-strcmp:    push    r8                  ; save string addresses
-           push    rf
-strcmp1:   lda     r8                  ; get byte from string 1
-           str     r2                  ; store for comparison
-           lbz     strcmpe             ; jump if end of string 1
-           smi     ' '                 ; space also terminates
-           lbz     strcmpe
-           lda     rf                  ; get byte from string2
-           sm                          ; compare to byte from string1
-           lbz     strcmp1             ; jumpt if a match so far
-strcmpn:   ldi     0                   ; signal no match
-strcmpd:   shr                         ; shift result into DF
-           pop     rf                  ; recover addresses
-           pop     r8
-           sep     sret                ; and return
-strcmpe:   lda     rf                  ; get byte from string2
-           lbz     strcmpy             ; jumpt if string2 is done
-           smi     ' '                 ; space also terminates
-           lbnz    strcmpn             ; jump if no match
-strcmpy:   ldi     1                   ; signal a match
-           lbr     strcmpd             ; and finish up
-
-; ***********************************
-; ***** Move R8 past any spaces *****
-; ***********************************
-trim:      lda     r8                  ; get byte from R8
-           smi     ' '                 ; check for space
-           lbz     trim                ; keep moving past spaces
-           dec     r8                  ; move back to non-space
-           sep     sret                ; and return to caller
-
+; *********************************************************************
+; *****                   Expression Evaluator                    *****
+; *********************************************************************
 ; **********************************
-; ***** Expression Evaluator   *****
 ; ***** Uses: RB - token stack *****
 ; *****       RC - arg 1       *****
 ; *****       RD - arg 2       *****
@@ -1257,72 +1190,9 @@ ops:       db      ('+'+080h),OP_ADD
            db      ('='+080h),OP_EQ
            db      0
 
-; **************************************
-; ***** Check D for 0-9            *****
-; ***** Returns: DF=1 - is number  *****
-; *****          DF=0 - not number *****
-; **************************************
-is_number: plo     re                  ; save original value
-           smi     '0'                 ; check for below numerals
-           lbnf    not_chr             ; jump if not in range
-           smi     9                   ; check high of range
-           lbdf    not_chr             ; jump if not in range
-           lbr     is_chr              ; otherwise singal in range
-not_chr:   ldi     0                   ; signal not in range
-           shr
-           glo     re                  ; recover original value
-           sep     sret                ; and return
-is_chr:    ldi     1                   ; sginal is in range
-           shr
-           glo     re
-           sep     sret
-
-; **************************************
-; ***** Check D for a-z            *****
-; ***** Returns: DF=1 - is number  *****
-; *****          DF=0 - not number *****
-; **************************************
-is_lc:     plo     re                  ; save original value
-           smi     'a'                 ; check for below range
-           lbnf    not_chr             ; jump if not in range
-           smi     26                  ; check high of range
-           lbdf    not_chr             ; jump if above range
-           lbr     is_chr              ; otherwise mark in range
-
-; **************************************
-; ***** Check D for A-Z            *****
-; ***** Returns: DF=1 - is number  *****
-; *****          DF=0 - not number *****
-; **************************************
-is_uc:     plo     re                  ; save original value
-           smi     'A'                 ; check for below range
-           lbnf    not_chr             ; jump if not in range
-           smi     26                  ; check high of range
-           lbdf    not_chr             ; jump if above range
-           lbr     is_chr              ; otherwise mark in range
-
-; **************************************************
-; ***** Check D for allowed variable character *****
-; ***** 0-9 ,a-z ,A-Z, _                       *****
-; ***** Returns: DF=1 - valid character        *****
-; *****          DF=0 - not valid character    *****
-; **************************************************
-is_varchr: sep     scall               ; check for number
-           dw      is_number
-           lbnf    varchr1             ; jump if not
-           sep     sret                ; return true to caller
-varchr1:   sep     scall               ; check for lowercase
-           dw      is_lc
-           lbnf    varchr2             ; jump if not
-           sep     sret                ; return true to caller
-varchr2:   sep     scall               ; check for uppercase
-           dw      is_uc
-           lbnf    varchr3             ; jump if not
-           sep     sret                ; return true to caller
-varchr3:   plo     re                  ; save value
-           smi     '_'                 ; check for underscore
-           lbnz    not_chr             ; false if not
-           lbr     is_chr              ; otherwise true
+; *********************************************************************
+; *****              End of  Expression Evaluator                 *****
+; *********************************************************************
 
 
 ; *************************************************************************
@@ -1484,6 +1354,14 @@ newivar2:  dec     r8                  ; move back to non-var character
            pop     rc
            sep     sret                ; and return to caller
 
+; *************************************************************************
+; *****                 End of  Variable Handling                     *****
+; *************************************************************************
+
+
+; *************************************************************************
+; *****                     Utility functions                         *****
+; *************************************************************************
 
 ; **************************************
 ; ***** Convert RF to bcd in M[RD] *****
@@ -1616,6 +1494,142 @@ itoan:     ldi     '-'          ; show negative
            adci    0
            phi     rf
            lbr     itoa1        ; now convert/show number
+
+; *****************************************
+; ***** Compare strings               *****
+; ***** R8 - String 1                 *****
+; ***** RF - String 2                 *****
+; ***** Returns: DF=1 - strings match *****
+; *****          DF=0 - No match      *****
+; *****************************************
+strcmp:    push    r8                  ; save string addresses
+           push    rf
+strcmp1:   lda     r8                  ; get byte from string 1
+           str     r2                  ; store for comparison
+           lbz     strcmpe             ; jump if end of string 1
+           smi     ' '                 ; space also terminates
+           lbz     strcmpe
+           lda     rf                  ; get byte from string2
+           sm                          ; compare to byte from string1
+           lbz     strcmp1             ; jumpt if a match so far
+strcmpn:   ldi     0                   ; signal no match
+strcmpd:   shr                         ; shift result into DF
+           pop     rf                  ; recover addresses
+           pop     r8
+           sep     sret                ; and return
+strcmpe:   lda     rf                  ; get byte from string2
+           lbz     strcmpy             ; jumpt if string2 is done
+           smi     ' '                 ; space also terminates
+           lbnz    strcmpn             ; jump if no match
+strcmpy:   ldi     1                   ; signal a match
+           lbr     strcmpd             ; and finish up
+
+; ***********************************
+; ***** Move R8 past any spaces *****
+; ***********************************
+trim:      lda     r8                  ; get byte from R8
+           smi     ' '                 ; check for space
+           lbz     trim                ; keep moving past spaces
+           dec     r8                  ; move back to non-space
+           sep     sret                ; and return to caller
+
+; ************************************************************
+; ***** Find line with label in R8 and jump to that line *****
+; ************************************************************
+findline:  mov     rf,program          ; point to beginning of program
+findlp:    ldn     rf                  ; get line size
+           lbz     findno              ; jump if label not found
+           inc     rf                  ; move to first byte
+           ldn     rf                  ; see if first byte is a label
+           smi     '*'
+           lbnz    find1               ; jump if not
+           sep     scall               ; compare labels
+           dw      strcmp
+           lbdf    findy               ; jump if match
+find1:     dec     rf                  ; move back to size byte
+           ldn     rf                  ; get size byte
+           str     r2                  ; store for add
+           glo     rf                  ; and add to line address
+           add
+           plo     rf
+           ghi     rf
+           adci    0
+           phi     rf
+           lbr     findlp              ; check next line
+findy:     dec     rf                  ; move back to size byte
+           mov     r7,rf               ; and set program counter
+           lbr     runloop             ; and continue execution
+findno:    sep     scall               ; print error
+           dw      o_inmsg
+           db      'Label not found: ',0
+           lbr     errline             ; and print line
+
+; **************************************
+; ***** Check D for 0-9            *****
+; ***** Returns: DF=1 - is number  *****
+; *****          DF=0 - not number *****
+; **************************************
+is_number: plo     re                  ; save original value
+           smi     '0'                 ; check for below numerals
+           lbnf    not_chr             ; jump if not in range
+           smi     9                   ; check high of range
+           lbdf    not_chr             ; jump if not in range
+           lbr     is_chr              ; otherwise singal in range
+not_chr:   ldi     0                   ; signal not in range
+           shr
+           glo     re                  ; recover original value
+           sep     sret                ; and return
+is_chr:    ldi     1                   ; sginal is in range
+           shr
+           glo     re
+           sep     sret
+
+; **************************************
+; ***** Check D for a-z            *****
+; ***** Returns: DF=1 - is number  *****
+; *****          DF=0 - not number *****
+; **************************************
+is_lc:     plo     re                  ; save original value
+           smi     'a'                 ; check for below range
+           lbnf    not_chr             ; jump if not in range
+           smi     26                  ; check high of range
+           lbdf    not_chr             ; jump if above range
+           lbr     is_chr              ; otherwise mark in range
+
+; **************************************
+; ***** Check D for A-Z            *****
+; ***** Returns: DF=1 - is number  *****
+; *****          DF=0 - not number *****
+; **************************************
+is_uc:     plo     re                  ; save original value
+           smi     'A'                 ; check for below range
+           lbnf    not_chr             ; jump if not in range
+           smi     26                  ; check high of range
+           lbdf    not_chr             ; jump if above range
+           lbr     is_chr              ; otherwise mark in range
+
+; **************************************************
+; ***** Check D for allowed variable character *****
+; ***** 0-9 ,a-z ,A-Z, _                       *****
+; ***** Returns: DF=1 - valid character        *****
+; *****          DF=0 - not valid character    *****
+; **************************************************
+is_varchr: sep     scall               ; check for number
+           dw      is_number
+           lbnf    varchr1             ; jump if not
+           sep     sret                ; return true to caller
+varchr1:   sep     scall               ; check for lowercase
+           dw      is_lc
+           lbnf    varchr2             ; jump if not
+           sep     sret                ; return true to caller
+varchr2:   sep     scall               ; check for uppercase
+           dw      is_uc
+           lbnf    varchr3             ; jump if not
+           sep     sret                ; return true to caller
+varchr3:   plo     re                  ; save value
+           smi     '_'                 ; check for underscore
+           lbnz    not_chr             ; false if not
+           lbr     is_chr              ; otherwise true
 
 
 errmsg:    db      'File not found',10,13,0
