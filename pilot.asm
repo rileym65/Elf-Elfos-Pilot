@@ -323,7 +323,11 @@ cmd_a:     sep     scall               ; show prompt
 ; ***********************************
 cmd_c:     sep     scall               ; move past any leading spaces
            dw      trim
-           push    r8                  ; save what should be a variable
+           ldn     r8                  ; get first byte of varname
+           smi     '#'                 ; check for hash
+           lbnz    cmd_c_1             ; jump if not
+           inc     r8                  ; move past hash
+cmd_c_1:   push    r8                  ; save what should be a variable
 cmd_c_a:   lda     r8                  ; read next byte
            lbz     synerr              ; syntax error if end of line found
            smi     '='                 ; looking for equals
