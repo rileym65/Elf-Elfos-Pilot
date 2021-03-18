@@ -566,6 +566,46 @@ rsub:      glo     rd
            phi     rc
            sep     sret
 
+; *********************************************
+; *** Function to multiply 2 16 bit numbers ***
+; *** RC *= RD                              ***
+; *********************************************
+mul16:     push    rf                  ; save consumed registers
+           ldi     0                   ; zero out total
+           phi     rf
+           plo     rf
+mulloop:   glo     rd                  ; get low of multiplier
+           lbnz    mulcont             ; continue multiplying if nonzero
+           ghi     rd                  ; check hi byte as well
+           lbnz    mulcont
+           mov     rc,rf               ; transfer answer
+           pop     rf                  ; recover consumed registers
+           sep     sret                ; return to caller
+mulcont:   ghi     rd                  ; shift multiplier
+           shr
+           phi     rd
+           glo     rd
+           shrc
+           plo     rd
+           lbnf    mulcont2            ; loop if no addition needed
+           glo     rc                  ; add RC to RF
+           str     r2
+           glo     rf
+           add
+           plo     rf
+           ghi     rc
+           str     r2
+           ghi     rf
+           adc
+           phi     rf
+mulcont2:  glo     rc                  ; shift first number
+           shl
+           plo     rc
+           ghi     rc
+           shlc
+           phi     rc
+           lbr     mulloop             ; loop until done
+
 reduce:    ldi     low numtokens       ; need number of tokens
            plo     r9
            ldn     r9
@@ -619,8 +659,15 @@ r_n_add:   glo     rf                  ; check OP_SUB
            sep     scall               ; perform subtraction
            dw      rsub
            lbr     r_done
+; ----- OP_MUL RC *= RD
+r_n_sub:   glo     rf                  ; check OP_MUL
+           smi     OP_MUL
+           lbnz    r_n_mul
+           sep     scall               ; perform multiplication
+           dw      mul16
+           lbr     r_done
 ; ----- OP_AND RC -= RD
-r_n_sub:   glo     rf                  ; check OP_AND
+r_n_mul:   glo     rf                  ; check OP_AND
            smi     OP_AND
            lbnz    r_n_and
            glo     rd
