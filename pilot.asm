@@ -417,6 +417,15 @@ cmd_t:     lda     r8                  ; read byte from arguments
            smi     '\'                 ; check for backslash
            lbz     lineend             ; this end output without cr/lf
            glo     re                  ; recover character
+           smi     '#'                 ; check for integer variable
+           lbnz    cmd_t_1             ; jump if not
+           sep     scall               ; get variable value
+           dw      getivar
+           sep     scall               ; and display it
+           dw      itoa
+           lbr     cmd_t               ; loop for more characters
+cmd_t_1:
+           glo     re                  ; recover character
            sep     scall               ; display byte
            dw      o_type
            lbr     cmd_t               ; loop until end of line
@@ -1073,6 +1082,11 @@ varchr3:   plo     re                  ; save value
            lbnz    not_chr             ; false if not
            lbr     is_chr              ; otherwise true
 
+
+; *************************************************************************
+; *****                     Variable Handling                         *****
+; *************************************************************************
+
 ; ***********************************************************
 ; ***** Find variable                                   *****
 ; ***** R8   - Pointer to variable name                 *****
@@ -1228,6 +1242,138 @@ newivar2:  dec     r8                  ; move back to non-var character
            pop     rc
            sep     sret                ; and return to caller
 
+
+; **************************************
+; ***** Convert RF to bcd in M[RD] *****
+; **************************************
+tobcd:     push    rd           ; save address
+           ldi     5            ; 5 bytes to clear
+           plo     re
+tobcdlp1:  ldi     0
+           str     rd           ; store into answer
+           inc     rd
+           dec     re           ; decrement count
+           glo     re           ; get count
+           lbnz    tobcdlp1     ; loop until done
+           pop     rd           ; recover address
+           ldi     16           ; 16 bits to process
+           plo     r9
+tobcdlp2:  ldi     5            ; need to process 5 cells
+           plo     re           ; put into count
+           push    rd           ; save address
+tobcdlp3:  ldn     rd           ; get byte
+           smi     5            ; need to see if 5 or greater
+           lbnf    tobcdlp3a    ; jump if not
+           adi     8            ; add 3 to original number
+           str     rd           ; and put it back
+tobcdlp3a: inc     rd           ; point to next cell
+           dec     re           ; decrement cell count
+           glo     re           ; retrieve count
+           lbnz    tobcdlp3     ; loop back if not done
+           glo     rf           ; start by shifting number to convert
+           shl
+           plo     rf
+           ghi     rf
+           shlc
+           phi     rf
+           shlc                 ; now shift result to bit 3
+           shl
+           shl
+           shl
+           str     rd
+           pop     rd           ; recover address
+           push    rd           ; save address again
+           ldi     5            ; 5 cells to process
+           plo     re
+tobcdlp4:  lda     rd           ; get current cell
+           str     r2           ; save it
+           ldn     rd           ; get next cell
+           shr                  ; shift bit 3 into df
+           shr
+           shr
+           shr
+           ldn     r2           ; recover value for current cell
+           shlc                 ; shift with new bit
+           ani     0fh          ; keep only bottom 4 bits
+           dec     rd           ; point back
+           str     rd           ; store value
+           inc     rd           ; and move to next cell
+           dec     re           ; decrement count
+           glo     re           ; see if done
+           lbnz    tobcdlp4     ; jump if not
+           pop     rd           ; recover address
+           dec     r9           ; decrement bit count
+           glo     r9           ; see if done
+           lbnz    tobcdlp2     ; loop until done
+           sep     sret         ; return to caller
+
+; ***************************************************
+; ***** Output 16-bit integer                   *****
+; ***** RF - 16-bit integer                     *****
+; ***************************************************
+itoa:      push    rf           ; save consumed registers
+           push    r9
+           push    r8
+           push    r7
+           glo     r2           ; make room on stack for buffer
+           smi     6
+           plo     r2
+           ghi     r2
+           smbi    0
+           phi     r2
+           mov     rd,r2        ; RD is output buffer
+           inc     rd
+           ghi     rf           ; get high byte
+           shl                  ; shift bit to DF
+           lbdf    itoan        ; negative number
+itoa1:     sep     scall        ; convert to bcd
+           dw      tobcd
+           mov     rd,r2
+           inc     rd
+           ldi     5
+           plo     r8
+           ldi     4            ; max 4 leading zeros
+           phi     r8
+itoalp1:   lda     rd
+           lbz     itoaz        ; check leading zeros
+           str     r2           ; save for a moment
+           ldi     0            ; signal no more leading zeros
+           phi     r8
+           ldn     r2           ; recover character
+itoa2:     adi     030h
+           sep     scall        ; display it
+           dw      o_type
+itoa3:     dec     r8
+           glo     r8
+           lbnz    itoalp1
+           glo     r2           ; pop work buffer off stack
+           adi     6
+           plo     r2
+           ghi     r2
+           adci    0
+           phi     r2
+           pop     r7
+           pop     r8           ; recover consumed registers
+           pop     r9
+           pop     rf
+           sep     sret         ; return to caller
+itoaz:     ghi     r8           ; see if leading have been used up
+           lbz     itoa2        ; jump if so
+           smi     1            ; decrement count
+           phi     r8
+           lbr     itoa3        ; and loop for next character
+itoan:     ldi     '-'          ; show negative
+           sep     scall        ; display it
+           dw      o_type
+           glo     rf           ; 2s compliment
+           xri     0ffh
+           adi     1
+           plo     rf
+           ghi     rf
+           xri     0ffh
+           adci    0
+           phi     rf
+           lbr     itoa1        ; now convert/show number
 
 
 errmsg:    db      'File not found',10,13,0
