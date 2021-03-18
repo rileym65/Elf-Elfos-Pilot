@@ -220,7 +220,24 @@ nolabel:   lda     r8                  ; get command byte
            ldn     r8
            smi     'y'
            lbz     c_ysmatch
-           lbr     c_nocond            ; no condition
+           ldn     r8                  ; check for expression
+           smi     '('
+           lbnz    c_nocond            ; jump if not
+           inc     r8                  ; move past open parens
+           glo     rb                  ; save command
+           stxd
+           sep     scall               ; evaluate expression
+           dw      evaluate
+           irx                         ; recover command
+           ldx
+           plo     rb
+           glo     rf                  ; check return value for nonzero
+           lbnz    expgood
+           ghi     rf
+           lbz     lineend             ; zero, so do not execute
+expgood:   inc     r8                  ; move past close parens
+           lbr     c_nocond            ; continue to execute command
+
 c_nomatch: inc     r8                  ; move past condition byte
            ldi     low matched         ; get matched flag
            plo     r9
@@ -245,6 +262,9 @@ c_nocond:  sep     scall               ; move past any spaces
            glo     rb                  ; get command
            smi     'A'                 ; check for A command
            lbz     cmd_a
+           glo     rb                  ; get command
+           smi     'C'                 ; check for C command
+           lbz     cmd_c
            glo     rb                  ; get command
            smi     'E'                 ; check for E command
            lbz     cmd_e
@@ -297,6 +317,23 @@ cmd_a:     sep     scall               ; show prompt
            sep     scall               ; display a cr/lf
            dw      crlf
            lbr     lineend             ; then continue
+
+; ***********************************
+; ***** Command C, Compute      *****
+; ***********************************
+cmd_c:     sep     scall               ; move past any leading spaces
+           dw      trim
+           push    r8                  ; save what should be a variable
+cmd_c_a:   lda     r8                  ; read next byte
+           lbz     synerr              ; syntax error if end of line found
+           smi     '='                 ; looking for equals
+           lbnz    cmd_c_a             ; loop until = found
+           sep     scall               ; evaluate expression
+           dw      evaluate
+           pop     r8                  ; pop what should be variable name
+           sep     scall               ; set variable to value
+           dw      setivar
+           lbr     lineend             ; and then continue
 
 ; **********************************************
 ; ***** Command E, exit subroutine/program *****
@@ -825,7 +862,7 @@ eval_0_1:  lda     r8                  ; get next character
            phi     rf
            lbr     eval_0_1            ; loop back for more numerals
 eval_0_2:  dec     r8                  ; move back to non-numeral character
-           ldi     OP_NUM              ; mark token as 
+eval_val:  ldi     OP_NUM              ; mark token as 
            str     rb                  ; store into token
            inc     rb
            ghi     rf                  ; store number into token
@@ -842,7 +879,18 @@ eval_0_2:  dec     r8                  ; move back to non-numeral character
            lbr     eval_lp             ; loop back for more tokens
 
 ; ***** Process variables *****
-eval_1:
+eval_1:    ldn     r8                  ; get byte
+           smi     '#'                 ; check for integer marker
+           lbz     eval_1a             ; jump if so
+           ldn     r8                  ; recover character
+           sep     scall               ; see if a variable character
+           dw      is_varchr
+           lbnf    eval_2              ; jump if not
+           dec     r8
+eval_1a:   inc     r8                  ; move past #
+           sep     scall               ; retrieve variable value
+           dw      getivar
+           lbr     eval_val            ; store value into next token
 
 ; ***** Check for operators *****
 eval_2:    sep     scall               ; check for operator
@@ -1053,6 +1101,7 @@ var_1:     ldn     rf                  ; get byte from table
            lbnz    var_3               ; jump if wrong type
            push    r8                  ; save buffer position
            push    rf                  ; save var table position
+           inc     rf                  ; move past type/size byte
 var_2:     lda     r8                  ; get byte from source line
            sep     scall               ; check for allowed char
            dw      is_varchr
@@ -1081,7 +1130,6 @@ var_4:     dec     r8                  ; move back to non-var character
            irx
            irx                         ; do not recover r8
            irx                         ; leave it after variable name
-           inc     rf                  ; point to variable data
            ldi     1
            shr
            sep     sret                ; return to caller
@@ -1171,8 +1219,9 @@ newivar2:  dec     r8                  ; move back to non-var character
            inc     r9
            glo     rf
            str     r9
-           shl     rc                  ; shift count
-           shl     rc
+           glo     rc                  ; get count
+           shl                         ; shift it two bits
+           shl
            ori     1                   ; flag integer variable
            str     rd                  ; and store to table
            pop     rd                  ; recover registers
