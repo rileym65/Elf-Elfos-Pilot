@@ -566,6 +566,44 @@ rsub:      glo     rd
            phi     rc
            sep     sret
 
+; ************************************
+; *** make both arguments positive ***
+; *** Arg1 RC                      ***
+; *** Arg2 RD                      ***
+; *** Returns D=0 - signs same     ***
+; ***         D=1 - signs difer    ***
+; ************************************
+mdnorm:    ghi     rc                  ; get high byte if divisor
+           str     r2                  ; store for sign check
+           ghi     rd                  ; get high byte of dividend
+           xor                         ; compare
+           shl                         ; shift into df
+           ldi     0                   ; convert to 0 or 1
+           shlc                        ; shift into D
+           plo     re                  ; store into sign flag
+           ghi     rc                  ; need to see if RC is negative
+           shl                         ; shift high byte to df
+           lbnf    mdnorm2             ; jump if not
+           ghi     rc                  ; 2s compliment on RC
+           xri     0ffh
+           phi     rc
+           glo     rc
+           xri     0ffh
+           plo     rc
+           inc     rc
+mdnorm2:   ghi     rd                  ; now check rD for negative
+           shl                         ; shift sign bit into df
+           lbnf    mdnorm3             ; jump if not
+           ghi     rd                  ; 2 compliment on RD
+           xri     0ffh
+           phi     rd
+           glo     rd
+           xri     0ffh
+           plo     rd
+           inc     rd
+mdnorm3:   glo     re                  ; recover sign flag
+           sep     sret                ; and return to caller
+
 ; *********************************************
 ; *** Function to multiply 2 16 bit numbers ***
 ; *** RC *= RD                              ***
@@ -605,6 +643,104 @@ mulcont2:  glo     rc                  ; shift first number
            shlc
            phi     rc
            lbr     mulloop             ; loop until done
+
+; *** RC = RB/R7
+; *** RB = remainder
+; *** uses R8 and R9
+; *********************************************
+; *** Function to divide 2 16 bit numbers   ***
+; *** RC /= RD                              ***
+; *********************************************
+div16:     sep     scall               ; normalize numbers
+           dw      mdnorm
+           plo     re                  ; save sign comparison
+           glo     rd                  ; check for divide by zero
+           lbnz    div16_1
+           ghi     rd
+           lbnz    div16_1
+           mov     rc,0                ; return 0 as div/0
+           sep     sret                ; and return to caller
+div16_1:   push    rf                  ; save consumed registers
+           push    r9
+           push    r8
+           ldi     0                   ; clear answer
+           phi     rf
+           plo     rf
+           phi     r8                  ; set additive
+           plo     r8
+           inc     r8
+d16lp1:    ghi     rd                  ; get high byte from rd
+           ani     128                 ; check high bit
+           lbnz    divst               ; jump if set
+           glo     rd                  ; lo byte of divisor
+           shl                         ; multiply by 2
+           plo     rd                  ; and put back
+           ghi     rd                  ; get high byte of divisor
+           shlc                        ; continue multiply by 2
+           phi     rd                  ; and put back
+           glo     r8                  ; multiply additive by 2
+           shl
+           plo     r8
+           ghi     r8
+           shlc
+           phi     r8
+           lbr     d16lp1              ; loop until high bit set in divisor
+divst:     glo     rd                  ; get low of divisor
+           lbnz    divgo               ; jump if still nonzero
+           ghi     rd                  ; check hi byte too
+           lbnz    divgo
+           glo     re                  ; get sign flag
+           shr                         ; move to df
+           lbnf    divret              ; jump if signs were the same
+           ghi     rf                  ; perform 2s compliment on answer
+           xri     0ffh
+           phi     rf
+           glo     rf
+           xri     0ffh
+           plo     rf
+           inc     rf
+divret:    mov     rc,rf               ; move answer to rc
+           pop     r8                  ; recover consumed registers
+           pop     r9
+           pop     rf
+           sep     sret                ; jump if done
+divgo:     mov     r9,rc               ; copy dividend
+           glo     rd                  ; get lo of divisor
+           str     r2                  ; store for subtract
+           glo     rc                  ; get low byte of dividend
+           sm                          ; subtract
+           plo     rc                  ; put back into r6
+           ghi     rd                  ; get hi of divisor
+           str     r2                  ; store for subtract
+           ghi     rc                  ; get hi of dividend
+           smb                         ; subtract
+           phi     rc                  ; and put back
+           lbdf    divyes              ; branch if no borrow happened
+           mov     rc,r9               ; recover copy
+           lbr     divno               ; jump to next iteration
+divyes:    glo     r8                  ; get lo of additive
+           str     r2                  ; store for add
+           glo     rf                  ; get lo of answer
+           add                         ; and add
+           plo     rf                  ; put back
+           ghi     r8                  ; get hi of additive
+           str     r2                  ; store for add
+           ghi     rf                  ; get hi byte of answer
+           adc                         ; and continue addition
+           phi     rf                  ; put back
+divno:     ghi     rd                  ; get hi of divisor
+           shr                         ; divide by 2
+           phi     rd                  ; put back
+           glo     rd                  ; get lo of divisor
+           shrc                        ; continue divide by 2
+           plo     rd
+           ghi     r8                  ; get hi of divisor
+           shr                         ; divide by 2
+           phi     r8                  ; put back
+           glo     r8                  ; get lo of divisor
+           shrc                        ; continue divide by 2
+           plo     r8
+           lbr     divst               ; next iteration
 
 reduce:    ldi     low numtokens       ; need number of tokens
            plo     r9
@@ -666,8 +802,15 @@ r_n_sub:   glo     rf                  ; check OP_MUL
            sep     scall               ; perform multiplication
            dw      mul16
            lbr     r_done
+; ----- OP_DIV RC /= RD
+r_n_mul:   glo     rf                  ; check OP_DIV
+           smi     OP_DIV
+           lbnz    r_n_div
+           sep     scall               ; perform multiplication
+           dw      div16
+           lbr     r_done
 ; ----- OP_AND RC -= RD
-r_n_mul:   glo     rf                  ; check OP_AND
+r_n_div:   glo     rf                  ; check OP_AND
            smi     OP_AND
            lbnz    r_n_and
            glo     rd
