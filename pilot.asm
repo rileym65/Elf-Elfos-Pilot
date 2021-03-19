@@ -425,9 +425,17 @@ cmd_j:     sep     scall               ; move past any spaces
 ; ****************************
 cmd_m:     sep     scall               ; move past leading spaces
            dw      trim
+           ldn     r8                  ; check for string variable
+           smi     '$'
+           lbnz    cmd_m_1             ; jump if not
+           inc     r8                  ; move past $ symbol
+           sep     scall               ; retrieve variable
+           dw      getsvar
            mov     rd,accept           ; point to accept buffer
+           lbr     cmd_m_2             ; check for match
+cmd_m_1:   mov     rd,accept           ; point to accept buffer
            mov     rf,r8               ; text to search for
-           sep     scall               ; search for string
+cmd_m_2:   sep     scall               ; search for string
            dw      strstr
            lbdf    cmd_m_yes           ; jump if matched
 cmd_m_no:  lda     r8                  ; get byte from program text
