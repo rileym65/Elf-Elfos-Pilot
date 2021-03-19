@@ -330,6 +330,9 @@ c_nocond:  sep     scall               ; move past any spaces
            glo     rb                  ; check for F command
            smi     'F'
            lbz     cmd_f
+           glo     rb                  ; check for Q command
+           smi     'Q'
+           lbz     o_wrmboot
 
            lbr     synerr              ; syntax error if invalid command
 
