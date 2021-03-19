@@ -343,7 +343,27 @@ cmd_a:     sep     scall               ; show prompt
            mov     rf,accept           ; point to accept buffer
            sep     scall               ; set the string variable
            dw      setsvar
-cmd_a_1:
+           lbr     cmd_a_4
+cmd_a_1:   ldn     r8                  ; recover byte from program
+           smi     '#'                 ; is it integer marker
+           lbz     cmd_a_2             ; jump if so
+           ldn     r8                  ; check for varname
+           sep     scall               ; check for lowercase letter
+           dw      is_lc
+           lbdf    cmd_a_3             ; jump if so
+           sep     scall               ; check for uppercase letter
+           dw      is_uc
+           lbdf    cmd_a_3             ; jump if so
+           lbr     lineend             ; othwerwise done
+cmd_a_2:   inc     r8                  ; move past # symbol
+cmd_a_3:   push    r8                  ; save program position
+           mov     r8,accept           ; point to accept buffer
+           sep     scall               ; convert to 16-bit integer
+           dw      atoi
+           pop     r8                  ; recover program position
+           sep     scall               ; set variable
+           dw      setivar
+cmd_a_4:
            lbr     lineend             ; then continue
 
 ; ***********************************
@@ -984,57 +1004,8 @@ eval_lp:   ldn     r8                  ; get byte from input
            sep     scall               ; see if numeric
            dw      is_number
            lbnf    eval_1              ; jump if not
-           smi     '0'                 ; conver to binary
-           plo     rf                  ; put into RF
-           ldi     0                   ; clear high byte
-           phi     rf
-           inc     r8                  ; move past character
-eval_0_1:  lda     r8                  ; get next character
-           sep     scall               ; is it a number
-           dw      is_number
-           lbnf    eval_0_2            ; jump if not
-           smi     '0'                 ; convert it to binary
-           plo     re                  ; and set it aside for now
-           glo     rf                  ; multiply total by 2
-           shl
-           plo     rf
-           plo     rc                  ; keep a copy here too
-           ghi     rf
-           shlc
-           phi     rf
-           phi     rc
-           glo     rc                  ; multiply rc by 2
-           shl
-           plo     rc
-           ghi     rc
-           shlc
-           phi     rc
-           glo     rc                  ; multiply rc by 4
-           shl
-           plo     rc
-           ghi     rc
-           shlc
-           phi     rc
-           glo     rc                  ; rf += rc
-           str     r2
-           glo     rf
-           add
-           plo     rf
-           ghi     rc
-           str     r2
-           ghi     rf
-           adc
-           phi     rf
-           glo     re                  ; rf += new number
-           str     r2
-           glo     rf
-           add
-           plo     rf
-           ghi     rf
-           adci    0
-           phi     rf
-           lbr     eval_0_1            ; loop back for more numerals
-eval_0_2:  dec     r8                  ; move back to non-numeral character
+           sep     scall               ; convert to binary
+           dw      atoi
 eval_val:  ldi     OP_NUM              ; mark token as 
            str     rb                  ; store into token
            inc     rb
@@ -1878,6 +1849,63 @@ varchr3:   plo     re                  ; save value
            lbnz    not_chr             ; false if not
            lbr     is_chr              ; otherwise true
 
+; ****************************************
+; ***** Convert ASCII to integer     *****
+; ***** R8 - Pointer to ASCII number *****
+; ***** Returns: RF - 16-bit integer *****
+; ****************************************
+atoi:      sep     scall               ; move past any spaces
+           dw      trim
+           ldi     0                   ; clear total
+           plo     rf
+           phi     rf
+atoi_0_1:  lda     r8                  ; get next character
+           sep     scall               ; is it a number
+           dw      is_number
+           lbnf    atoi_0_2            ; jump if not
+           smi     '0'                 ; convert it to binary
+           plo     re                  ; and set it aside for now
+           glo     rf                  ; multiply total by 2
+           shl
+           plo     rf
+           plo     rc                  ; keep a copy here too
+           ghi     rf
+           shlc
+           phi     rf
+           phi     rc
+           glo     rc                  ; multiply rc by 2
+           shl
+           plo     rc
+           ghi     rc
+           shlc
+           phi     rc
+           glo     rc                  ; multiply rc by 4
+           shl
+           plo     rc
+           ghi     rc
+           shlc
+           phi     rc
+           glo     rc                  ; rf += rc
+           str     r2
+           glo     rf
+           add
+           plo     rf
+           ghi     rc
+           str     r2
+           ghi     rf
+           adc
+           phi     rf
+           glo     re                  ; rf += new number
+           str     r2
+           glo     rf
+           add
+           plo     rf
+           ghi     rf
+           adci    0
+           phi     rf
+           lbr     atoi_0_1            ; loop back for more numerals
+atoi_0_2:  dec     r8                  ; move back to non-numeral character
+           sep     sret                ; and return to caller
 
 errmsg:    db      'File not found',10,13,0
 fildes:    db      0,0,0,0
