@@ -14,7 +14,7 @@
 
   - Implement F command
 
-  - Implement K command
+* - Implement K command
 
   - Implement C command with string expressions
 

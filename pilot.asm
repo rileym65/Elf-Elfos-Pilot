@@ -310,6 +310,9 @@ c_nocond:  sep     scall               ; move past any spaces
            glo     rb                  ; check for O command
            smi     'O'
            lbz     cmd_o
+           glo     rb                  ; check for K command
+           smi     'K'
+           lbz     cmd_k
 
            lbr     synerr              ; syntax error if invalid command
 
@@ -422,6 +425,23 @@ cmd_j:     sep     scall               ; move past any spaces
            smi     '*'                 ; must be a star
            lbnz    synerr              ; otherwise error
            lbr     findline            ; find line with label
+
+; ****************************************
+; ***** Command K, type ASCII code   *****
+; ****************************************
+cmd_k:     sep     scall               ; move past any spaces
+           dw      trim
+           sep     scall               ; evaluate port
+           dw      evaluate
+           glo     rf                  ; check if in range
+           sep     scall               ; display it
+           dw      o_type
+           sep     scall               ; move past any spaces
+           dw      trim
+           lda     r8                  ; get next character
+           smi     ','                 ; check for comma
+           lbz     cmd_k               ; process next code
+           lbr     lineend             ; otherwise done
 
 ; ****************************
 ; ***** Command M, Match *****
