@@ -12,7 +12,7 @@
 
 * - Implement O command
 
-  - Implement F command
+* - Implement F command
 
 * - Implement K command
 

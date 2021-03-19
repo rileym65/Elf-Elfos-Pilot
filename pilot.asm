@@ -54,6 +54,17 @@ vartable:  dw      0
 varend:    dw      0
 heap:      dw      0
 
+readef:    ldi     0                   ; start with 0
+           bn1     ef1                 ; jump if EF1=0
+           ori     1                   ; signal on
+ef1:       bn2     ef2                 ; jump if EF2=0
+           ori     2                   ; signal on
+ef2:       bn3     ef3                 ; jump if EF3=0
+           ori     4                   ; signal on
+ef3:       bn4     ef4                 ; jump if EF4=0
+           ori     8                   ; signal on
+ef4:       sep     sret                ; return to caller
+
 start:     sep     scall               ; display header
            dw      o_inmsg
            db      'Rc/Pilot 0.1',10,13,0
@@ -316,6 +327,9 @@ c_nocond:  sep     scall               ; move past any spaces
            glo     rb                  ; check for I command
            smi     'I'
            lbz     cmd_i
+           glo     rb                  ; check for F command
+           smi     'F'
+           lbz     cmd_f
 
            lbr     synerr              ; syntax error if invalid command
 
@@ -418,6 +432,24 @@ cmd_e_ret: dec     ra                  ; recover pc from stack
            ldn     ra
            phi     r7
            lbr     lineend             ; and then continue processing
+
+; ************************************
+; ***** Command F, Read EF flags *****
+; ************************************
+cmd_f:     sep     scall               ; move past any leading spaces
+           dw      trim
+           ldn     r8                  ; check for hash
+           smi     '#'
+           lbnz    cmd_f_1             ; jump if not
+           inc     r8                  ; otherwise move past hash
+cmd_f_1:   sep     scall               ; read EF flags
+           dw      readef
+           plo     rf                  ; put into value for variable
+           ldi     0                   ; high byte is zero
+           phi     rf
+           sep     scall               ; set the variable
+           dw      setivar
+           lbr     lineend             ; then on to the next line
 
 ; **************************************
 ; ***** Command I, Input from port *****
