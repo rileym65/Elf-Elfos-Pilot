@@ -1281,6 +1281,57 @@ var_no:    ldi     0                   ; signal error
            shr
            sep     sret                ; return to caller
      
+; ***********************************************************
+; ***** Find/create variable                            *****
+; ***** R8   - Pointer to variable name                 *****
+; ***** RC.0 - Variable type                            *****
+; ***** Returns: RF - Address of variable data          *****
+; *****          R8 - First character after name        *****
+; ***********************************************************
+findcrvar: sep     scall               ; see if var already exists
+           dw      findvar
+           lbdf    vexists             ; jump if the variable exists
+           mov     rd,rf               ; keep copy of variable address
+           glo     rc                  ; move type to high byte
+           str     rf                  ; store variable type
+           ldi     4                   ; set count
+           plo     rc
+           inc     rf                  ; point to where name goes
+newvar1:   lda     r8                  ; get byte from var name
+           sep     scall               ; check for valid character
+           dw      is_varchr
+           lbnf    newvar2             ; jump if not
+           str     rf                  ; store into var table
+           inc     rf
+           inc     rc                  ; increment count
+           lbr     newvar1             ; loop until name is copied
+newvar2:   dec     r8                  ; move back to non-var character
+           ldi     0                   ; terminate name
+           str     rf
+           inc     rf                  ; rf pointing at var data
+           ldi     0                   ; write new end of table
+           str     rf                  ; set initial value to zero
+           inc     rf                  ; move past data
+           str     rf
+           inc     rf
+           str     rf                  ; set end of table
+           ldi     low varend          ; end of variable table
+           plo     r9
+           ghi     rf                  ; write new end
+           str     r9
+           inc     r9
+           glo     rf
+           str     r9
+           dec     rf                  ; move rf back to data
+           dec     rf
+           glo     rc                  ; get count
+           shl                         ; shift it two bits
+           shl
+           str     r2                  ; need to combine with type
+           ldn     rd
+           or
+           str     rd                  ; write combined value
+vexists:   sep     sret                ; and return to caller
 
 ; ***********************************************************
 ; ***** Get integer variable value                      *****
@@ -1319,56 +1370,80 @@ setivar:   push    rc                  ; save used registers
            stxd
            ldi     1                   ; search for integer variable
            plo     rc
-           sep     scall               ; find variable address
-           dw      findvar
-           lbnf    newivar             ; jump if new variable needed
+           sep     scall               ; find/create variable
+           dw      findcrvar
            irx                         ; set variable value
            ldxa
            str     rf
            inc     rf
            ldx
            str     rf
-           pop     rd                  ; recover used registers
+           pop     rd                  ; recover consumed registers
            pop     rc
            sep     sret                ; and return to caller
-newivar:   mov     rd,rf               ; keep copy of variable address
-           ldi     4                   ; set count
+
+; ***********************************************************
+; ***** Get string variable value                       *****
+; ***** R8   - Pointer to variable name                 *****
+; ***** Returns: when found                             *****
+; *****          RF - Variable value                    *****
+; *****          R8 - First character after name        *****
+; ***********************************************************
+getsvar:   ldi     2                   ; search for string variable
            plo     rc
-           inc     rf                  ; point to where name goes
-newivar1:  lda     r8                  ; get byte from var name
-           sep     scall               ; check for valid character
-           dw      is_varchr
-           lbnf    newivar2            ; jump if not
-           str     rf                  ; store into var table
-           inc     rf
-           inc     rc                  ; increment count
-           lbr     newivar1            ; loop until name is copied
-newivar2:  dec     r8                  ; move back to non-var character
-           ldi     0                   ; terminate name
-           str     rf
-           inc     rf
-           irx                         ; set value
-           ldxa
-           str     rf
-           inc     rf
-           ldx
-           str     rf
-           inc     rf
-           ldi     0                   ; write new end of table
-           str     rf
-           ldi     low varend          ; end of variable table
-           plo     r9
-           ghi     rf                  ; write new end
-           str     r9
-           inc     r9
+           sep     scall               ; find variable address
+           dw      findvar
+           lbnf    varntfnd            ; jump if variable not found
+           lda     rf                  ; get variable value
+           plo     re                  ; save for a moment
+           lda     rf                  ; get lsb
+           plo     rf
+           glo     re                  ; recover msb
+           phi     rf
+           sep     sret                ; and return to caller
+
+; ***************************************************
+; ***** Set string variable                     *****
+; ***** R8 - Pointer to variable name           *****
+; ***** RF - Pointer to source string           *****
+; ***************************************************
+setsvar:   push    rc                  ; save used registers
+           push    rd
+           push    rf                  ; save value
+           ldi     2                   ; search for string variable
+           plo     rc
+           sep     scall               ; find/create variable
+           dw      findcrvar
+           mov     rd,rf               ; move variable data to RD
+           lda     rd                  ; need to see if memory is allocated
+           phi     rf                  ; put into RF in case need to dealloc
+           str     r2
+           ldn     rd
+           plo     rf
+           or
+           dec     rd                  ; move pointer back
+           lbz     setsvar_1           ; jump if not allocated
+           sep     scall               ; deallocate the memory
+           dw      dealloc
+setsvar_1: pop     rf                  ; recover string
+           push    rf                  ; and keep on stack
+           sep     scall               ; get length of string
+           dw      strlen
+           inc     rc                  ; plus 1 byte for terminator
+           push    rd                  ; save variable data pointer
+           sep     scall               ; allocate memory for string
+           dw      alloc
+           pop     rd                  ; recover variable data
+           ghi     rf                  ; store alloc memory into var
+           str     rd
+           inc     rd
            glo     rf
-           str     r9
-           glo     rc                  ; get count
-           shl                         ; shift it two bits
-           shl
-           ori     1                   ; flag integer variable
-           str     rd                  ; and store to table
-           pop     rd                  ; recover registers
+           str     rd
+           mov     rf,rd               ; move destination to rd
+           pop     rf                  ; recover source string
+           sep     scall               ; and copy to destination
+           dw      strcpy
+           pop     rd                  ; recover consumed registers
            pop     rc
            sep     sret                ; and return to caller
 
@@ -1382,36 +1457,36 @@ newivar2:  dec     r8                  ; move back to non-var character
 
 ; *******************************************
 ; ***** Allocate memory                 *****
-; ***** RF - requested size             *****
+; ***** RC - requested size             *****
 ; ***** Returns: RF - Address of memory *****
 ; *******************************************
 alloc:     ldi     low heap            ; get heap address
            plo     r9
-           lda     rf
+           lda     r9
            phi     rd
-           ldn     rf
+           ldn     r9
            plo     rd
            dec     r9                  ; leave pointer at heap address
 alloc_1:   lda     rd                  ; get flags byte
            lbz     alloc_new           ; need new if end of table
            plo     re                  ; save flags
            lda     rd                  ; get block size
-           phi     rc
+           phi     rf
            lda     rd
-           plo     rc
+           plo     rf
            glo     re                  ; is block allocated?
            smi     2
            lbz     alloc_nxt           ; jump if so
-           glo     rf                  ; subtract size from block size
+           glo     rc                  ; subtract size from block size
            str     r2
-           glo     rc
+           glo     rf
            sm
-           plo     rc
-           ghi     rf
-           str     r2
+           plo     rf
            ghi     rc
+           str     r2
+           ghi     rf
            smb
-           phi     rc
+           phi     rf
            lbnf    alloc_nxt           ; jumpt if block is too small
            mov     rf,rd               ; set address for return
            dec     rd                  ; move back to flags byte
@@ -1420,12 +1495,12 @@ alloc_1:   lda     rd                  ; get flags byte
            ldi     2                   ; mark block as used
            str     rd
            sep     sret                ; and return to caller
-alloc_nxt: glo     rc                  ; add block size to address
+alloc_nxt: glo     rf                  ; add block size to address
            str     r2
            glo     rd
            add
            plo     rd
-           ghi     rc
+           ghi     rf
            str     r2
            ghi     rd
            adc
@@ -1435,21 +1510,21 @@ alloc_new: lda     r9                  ; retrieve start of heap
            phi     rd
            ldn     r9
            plo     rd
-           glo     rf                  ; subtract req. size from pointer
+           glo     rc                  ; subtract req. size from pointer
            str     r2
            glo     rd
            sm
            plo     rd
-           ghi     rf
+           ghi     rc
            str     r2
            ghi     rd
            smb
            phi     rd
            dec     rd                  ; point to lsb of block size
-           glo     rf                  ; write size
+           glo     rc                  ; write size
            str     rd
            dec     rd
-           ghi     rf
+           ghi     rc
            str     rd
            dec     rd
            ldi     2                   ; mark as allocated block
@@ -1484,6 +1559,37 @@ dealloc:   dec     rf                  ; move to flags byte
 ; *************************************************************************
 ; *****                     Utility functions                         *****
 ; *************************************************************************
+
+; *************************************
+; ***** Get string length         *****
+; ***** RF - pointer to string    *****
+; ***** Returns: RC - string size *****
+; *************************************
+strlen:    push    rf           ; save string address
+           ldi     0            ; clear counter
+           plo     rc
+           phi     rc
+strlen_1:  lda     rf           ; get next byte
+           lbz     strlen_2     ; jump if terminator found
+           inc     rc           ; increment size
+           lbr     strlen_1     ; loop until terminator found
+strlen_2:  pop     rf           ; recover string address
+           sep     sret         ; and return to caller
+
+; ***********************************
+; ***** Copy string             *****
+; ***** RF - Source string      *****
+; ***** RD - Destination string *****
+; ***********************************
+strcpy:    push    rd           ; save addresses
+           push    rf
+strcpy_1:  lda     rf           ; read source byte
+           str     rd           ; write into destination
+           inc     rd
+           lbnz    strcpy_1     ; copy until terminator copied
+           pop     rf           ; recover addresses
+           pop     rd
+           sep     sret         ; and return to caller
 
 ; **************************************
 ; ***** Convert RF to bcd in M[RD] *****
