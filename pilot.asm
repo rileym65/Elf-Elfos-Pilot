@@ -363,8 +363,13 @@ cmd_a_3:   push    r8                  ; save program position
            pop     r8                  ; recover program position
            sep     scall               ; set variable
            dw      setivar
-cmd_a_4:
-           lbr     lineend             ; then continue
+cmd_a_4:   sep     scall               ; move past any spaces
+           dw      trim
+           ldn     r8                  ; get next program byte
+           smi     ','                 ; check for comma
+           lbnz    lineend             ; jump if not
+           inc     r8                  ; move past comma
+           lbr     cmd_a               ; and get more input
 
 ; ***********************************
 ; ***** Command C, Compute      *****
