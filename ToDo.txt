@@ -1,0 +1,21 @@
+  - Complete M command implementation
+*   - Multiple match options
+    - Allow strings for match option
+    - Set $LEFT, $MATCH, and $RIGHT
+
+  - Heap manager
+    - consolidate unallocated blocks
+    - split block when only allocating a small portion of it
+    - heap/variable table collision detection
+
+  - Implement I command
+
+  - Implement O command
+
+  - Implement F command
+
+  - Implement K command
+
+  - Implement C command with string expressions
+
+  

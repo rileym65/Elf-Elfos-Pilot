@@ -425,27 +425,17 @@ cmd_j:     sep     scall               ; move past any spaces
 ; ****************************
 cmd_m:     sep     scall               ; move past leading spaces
            dw      trim
-           mov     rf,accept           ; point to accept buffer
-cmd_m_lp:  ldn     rf                  ; see if at end of accept buffer
-           lbz     cmd_m_no            ; jump if end of string
-           push    rf                  ; save accept buffer position
-           push    r8                  ; save match string position
-cmd_m_cmp: lda     r8                  ; get byte from match string
-           lbz     m_yes               ; jump if end found
-           str     r2                  ; store for compare
-           smi     ','                 ; comma also terminates
-           lbz     m_yes
-           lda     rf                  ; get byte from accept buffer
-           sm                          ; compare to match string
-           lbz     cmd_m_cmp           ; jump if a match
-cmd_m_nm:  pop     r8                  ; recover addresses
-           pop     rf
-           inc     rf                  ; point to next character
-           lbr     cmd_m_lp            ; and keep looking
-m_yes:     pop     r8                  ; recover addresses
-           pop     rf
-           lbr     cmd_m_yes           ; and signal a match
-cmd_m_no:  ldi     low matched         ; point to matched flag
+           mov     rd,accept           ; point to accept buffer
+           mov     rf,r8               ; text to search for
+           sep     scall               ; search for string
+           dw      strstr
+           lbdf    cmd_m_yes           ; jump if matched
+cmd_m_no:  lda     r8                  ; get byte from program text
+           lbz     cmd_m_no2           ; jump if end of line found
+           smi     ','                 ; look for comma
+           lbz     cmd_m               ; jump if found, try next option
+           lbr     cmd_m_no            ; keep looking for end or ,
+cmd_m_no2: ldi     low matched         ; point to matched flag
            plo     r9
            ldi     0                   ; signal no match
            str     r9
@@ -1746,6 +1736,46 @@ strcmpe:   lda     rf                  ; get byte from string2
            lbnz    strcmpn             ; jump if no match
 strcmpy:   ldi     1                   ; signal a match
            lbr     strcmpd             ; and finish up
+
+; ******************************************
+; ***** Search for substring           *****
+; ***** RD - String to search          *****
+; ***** RF - Substring                 *****
+; ***** Returns: DF=1 - String found   *****
+; *****          RC   - Position count *****
+; ******************************************
+strstr:    ldi     0                   ; set position count
+           plo     rc
+           phi     rc
+strstr_1:  ldn     rd                  ; get byte from string to search
+           lbz     strstr_no           ; jump if at end
+           push    rf                  ; save positions
+           push    rd
+strstr_1a: lda     rf                  ; get byte from substring
+           lbz     strstr_1b           ; jump if end of substring
+           plo     re                  ; keep a copy
+           smi     ','                 ; comma also terminates substring
+           lbz     strstr_1b
+           glo     re                  ; recover character
+           str     r2                  ; store for comparison
+           lda     rd                  ; get byte from string
+           sm                          ; do they match
+           lbz     strstr_1a           ; loop back if so
+           pop     rd                  ; recover positions
+           pop     rf
+           inc     rd                  ; move to next character
+           inc     rc                  ; increment start counter
+           lbr     strstr_1            ; and keep looking for a match
+strstr_1b: irx                         ; clear entries from stack
+           irx
+           irx
+           irx
+           ldi     1                   ; signal found
+           shr
+           sep     sret                ; and return to caller
+strstr_no: ldi     0                   ; signal not found
+           shr
+           sep     sret                ; and return
 
 ; ***********************************
 ; ***** Move R8 past any spaces *****
