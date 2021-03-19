@@ -52,6 +52,7 @@ numtokens: db      0
 parens:    db      0
 vartable:  dw      0
 varend:    dw      0
+heap:      dw      0
 
 start:     sep     scall               ; display header
            dw      o_inmsg
@@ -172,6 +173,23 @@ run:       mov     r7,program          ; point to first program line
            str     r9
            ldi     0                   ; clear variable table
            str     r8
+           ldi     low heap            ; point to heap pointer
+           plo     r9
+           mov     rf,HIMEM            ; point to Elf/OS high memory pointer
+           lda     rf                  ; retrieve it
+           plo     re
+           ldn     rf
+           plo     rf
+           glo     re
+           phi     rf
+           dec     rf                  ; minus one byte
+           ldi     0                   ; mark end of heap
+           str     rf
+           ghi     rf                  ; store address in heap pointer
+           str     r9
+           inc     r9
+           glo     rf
+           str     r9
 
 ; *****************************
 ; ***** Main program loop *****
@@ -1356,6 +1374,110 @@ newivar2:  dec     r8                  ; move back to non-var character
 
 ; *************************************************************************
 ; *****                 End of  Variable Handling                     *****
+; *************************************************************************
+
+; *************************************************************************
+; *****                       Heap Manager                            *****
+; *************************************************************************
+
+; *******************************************
+; ***** Allocate memory                 *****
+; ***** RF - requested size             *****
+; ***** Returns: RF - Address of memory *****
+; *******************************************
+alloc:     ldi     low heap            ; get heap address
+           plo     r9
+           lda     rf
+           phi     rd
+           ldn     rf
+           plo     rd
+           dec     r9                  ; leave pointer at heap address
+alloc_1:   lda     rd                  ; get flags byte
+           lbz     alloc_new           ; need new if end of table
+           plo     re                  ; save flags
+           lda     rd                  ; get block size
+           phi     rc
+           lda     rd
+           plo     rc
+           glo     re                  ; is block allocated?
+           smi     2
+           lbz     alloc_nxt           ; jump if so
+           glo     rf                  ; subtract size from block size
+           str     r2
+           glo     rc
+           sm
+           plo     rc
+           ghi     rf
+           str     r2
+           ghi     rc
+           smb
+           phi     rc
+           lbnf    alloc_nxt           ; jumpt if block is too small
+           mov     rf,rd               ; set address for return
+           dec     rd                  ; move back to flags byte
+           dec     rd
+           dec     rd
+           ldi     2                   ; mark block as used
+           str     rd
+           sep     sret                ; and return to caller
+alloc_nxt: glo     rc                  ; add block size to address
+           str     r2
+           glo     rd
+           add
+           plo     rd
+           ghi     rc
+           str     r2
+           ghi     rd
+           adc
+           phi     rd
+           lbr     alloc_1             ; check next cell
+alloc_new: lda     r9                  ; retrieve start of heap
+           phi     rd
+           ldn     r9
+           plo     rd
+           glo     rf                  ; subtract req. size from pointer
+           str     r2
+           glo     rd
+           sm
+           plo     rd
+           ghi     rf
+           str     r2
+           ghi     rd
+           smb
+           phi     rd
+           dec     rd                  ; point to lsb of block size
+           glo     rf                  ; write size
+           str     rd
+           dec     rd
+           ghi     rf
+           str     rd
+           dec     rd
+           ldi     2                   ; mark as allocated block
+           str     rd
+           mov     rf,rd               ; set address
+           inc     rf                  ; point to actual data space
+           inc     rf
+           inc     rf
+           glo     rd                  ; write new heap address
+           str     r9
+           dec     r9
+           ghi     rd
+           str     rd
+           sep     sret                ; return to caller
+
+; **************************************
+; ***** Deallocate memory          *****
+; ***** RF - address to deallocate *****
+; **************************************
+dealloc:   dec     rf                  ; move to flags byte
+           dec     rf
+           dec     rf
+           ldi     1                   ; mark block as free
+           str     rf
+           sep     sret                ; return to caller
+
+; *************************************************************************
+; *****                   End of  Heap Manager                        *****
 ; *************************************************************************
 
 
