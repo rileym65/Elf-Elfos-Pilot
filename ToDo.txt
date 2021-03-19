@@ -1,7 +1,7 @@
-  - Complete M command implementation
+* - Complete M command implementation
 *   - Multiple match options
 *   - Allow strings for match option
-    - Set $LEFT, $MATCH, and $RIGHT
+*   - Set $LEFT, $MATCH, and $RIGHT
 
   - Heap manager
     - consolidate unallocated blocks

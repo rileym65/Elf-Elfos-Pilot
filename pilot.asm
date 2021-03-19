@@ -452,6 +452,50 @@ cmd_m_yes: ldi     low matched         ; point to matched flag
            plo     r9
            ldi     0ffh                ; signal match
            str     r9
+           mov     rf,accept           ; point to accept buffer
+           mov     rb,dta              ; point to free space
+           push    r8                  ; save program counter
+cmd_m_y1:  glo     rc                  ; get byte count
+           lbz     cmd_m_y2            ; jump if end
+           lda     rf                  ; read byte from accept buffer
+           str     rb                  ; writ to buffer
+           inc     rb
+           dec     rc
+           lbr     cmd_m_y1            ; loop until all bytes before match
+cmd_m_y2:  push    rf                  ; save position
+           ldi     0                   ; terminate string
+           str     rb
+           mov     r8,left             ; point to LEFT variable
+           mov     rf,dta              ; point to left data
+           sep     scall               ; store it
+           dw      setsvar
+           pop     rf                  ; recover position
+           mov     rb,dta              ; point to free space
+cmd_m_y3:  glo     rf                  ; compare rf to rd
+           str     r2
+           glo     rd
+           sm
+           lbnz    cmd_m_y4            ; jump if they do not match
+           ghi     rf                  ; check high byte as well
+           str     r2
+           ghi     rd
+           sm
+           lbz     cmd_m_y5            ; jump if at aend
+cmd_m_y4:  lda     rf                  ; get byte from input
+           str     rb                  ; write into output
+           inc     rb
+           lbr     cmd_m_y3            ; loop until match string copied
+cmd_m_y5:  ldi     0                   ; terminate string
+           str     rb
+           mov     r8,match            ; point to match variable
+           mov     rf,dta              ; point to match text
+           sep     scall               ; and store it
+           dw      setsvar
+           mov     r8,right            ; point to $RIGHT
+           mov     rf,rd               ; point to text after match
+           sep     scall               ; set the variable
+           dw      setsvar
+           pop     r8                  ; recover program counter
            lbr     lineend             ; and on to the next line
 
 ; ****************************************
@@ -1751,6 +1795,7 @@ strcmpy:   ldi     1                   ; signal a match
 ; ***** RF - Substring                 *****
 ; ***** Returns: DF=1 - String found   *****
 ; *****          RC   - Position count *****
+; *****          RD   - After match    *****
 ; ******************************************
 strstr:    ldi     0                   ; set position count
            plo     rc
@@ -1951,6 +1996,9 @@ atoi_0_2:  dec     r8                  ; move back to non-numeral character
            sep     sret                ; and return to caller
 
 errmsg:    db      'File not found',10,13,0
+left:      db      'LEFT',0
+right:     db      'RIGHT',0
+match:     db      'MATCH',0
 fildes:    db      0,0,0,0
            dw      dta
            db      0,0
