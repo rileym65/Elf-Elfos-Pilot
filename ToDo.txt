@@ -8,7 +8,7 @@
     - split block when only allocating a small portion of it
     - heap/variable table collision detection
 
-  - Implement I command
+* - Implement I command
 
 * - Implement O command
 

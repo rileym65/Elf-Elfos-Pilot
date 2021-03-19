@@ -313,6 +313,9 @@ c_nocond:  sep     scall               ; move past any spaces
            glo     rb                  ; check for K command
            smi     'K'
            lbz     cmd_k
+           glo     rb                  ; check for I command
+           smi     'I'
+           lbz     cmd_i
 
            lbr     synerr              ; syntax error if invalid command
 
@@ -415,6 +418,39 @@ cmd_e_ret: dec     ra                  ; recover pc from stack
            ldn     ra
            phi     r7
            lbr     lineend             ; and then continue processing
+
+; **************************************
+; ***** Command I, Input from port *****
+; **************************************
+cmd_i:     sep     scall               ; move past any leading spaces
+           dw      trim
+           ldn     r8                  ; get first byte of varname
+           smi     '#'                 ; check for hash
+           lbnz    cmd_i_1             ; jump if not
+           inc     r8                  ; move past hash
+cmd_i_1:   push    r8                  ; save what should be a variable
+cmd_i_a:   lda     r8                  ; read next byte
+           lbz     synerr              ; syntax error if end of line found
+           smi     '='                 ; looking for equals
+           lbnz    cmd_i_a             ; loop until = found
+           sep     scall               ; evaluate expression
+           dw      evaluate
+           glo     rf                  ; check port for range
+           lbz     rangeerr            ; jump if out of range
+           ani     0f8h                ; check if greater than 7
+           lbnz    rangeerr            ; jump if out of range
+           mov     rc,cmd_in           ; where to write inp command
+           glo     rf                  ; recover value
+           ori     068h                ; convert to INP command
+           str     rc                  ; store for exeuction
+cmd_in:    db      0c4h
+           plo     rf                  ; put read value into RF
+           ldi     0                   ; clear high byte
+           phi     rf
+           pop     r8                  ; pop what should be variable name
+           sep     scall               ; set variable to value
+           dw      setivar
+           lbr     lineend             ; and then continue
 
 ; ************************************
 ; ***** Command J, jump to label *****
