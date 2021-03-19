@@ -334,6 +334,16 @@ cmd_a:     sep     scall               ; show prompt
            dw      o_input
            sep     scall               ; display a cr/lf
            dw      crlf
+           sep     scall               ; move past any spaces
+           dw      trim
+           ldn     r8                  ; get byte from program
+           smi     '$'                 ; check for string variable
+           lbnz    cmd_a_1             ; jump if not
+           inc     r8                  ; move past $ sign
+           mov     rf,accept           ; point to accept buffer
+           sep     scall               ; set the string variable
+           dw      setsvar
+cmd_a_1:
            lbr     lineend             ; then continue
 
 ; ***********************************
@@ -446,8 +456,17 @@ cmd_t:     lda     r8                  ; read byte from arguments
            sep     scall               ; and display it
            dw      itoa
            lbr     cmd_t               ; loop for more characters
-cmd_t_1:
-           glo     re                  ; recover character
+cmd_t_1:   glo     re                  ; recover character
+           smi     '$'                 ; check for string variable
+           lbnz    cmd_t_2             ; jump if not
+           sep     scall               ; get variable value
+           dw      getsvar
+cmd_t_1a:  lda     rf                  ; get byte from string
+           lbz     cmd_t               ; back to main print loop if term.
+           sep     scall               ; display it
+           dw      o_type
+           lbr     cmd_t_1a            ; keep display until terminator
+cmd_t_2:   glo     re                  ; recover character
            sep     scall               ; display byte
            dw      o_type
            lbr     cmd_t               ; loop until end of line
@@ -1439,7 +1458,7 @@ setsvar_1: pop     rf                  ; recover string
            inc     rd
            glo     rf
            str     rd
-           mov     rf,rd               ; move destination to rd
+           mov     rd,rf               ; move destination to rd
            pop     rf                  ; recover source string
            sep     scall               ; and copy to destination
            dw      strcpy
@@ -1537,7 +1556,7 @@ alloc_new: lda     r9                  ; retrieve start of heap
            str     r9
            dec     r9
            ghi     rd
-           str     rd
+           str     r9
            sep     sret                ; return to caller
 
 ; **************************************
