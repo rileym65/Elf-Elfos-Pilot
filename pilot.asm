@@ -307,6 +307,9 @@ c_nocond:  sep     scall               ; move past any spaces
            glo     rb                  ; check for M command
            smi     'M'
            lbz     cmd_m
+           glo     rb                  ; check for O command
+           smi     'O'
+           lbz     cmd_o
 
            lbr     synerr              ; syntax error if invalid command
 
@@ -499,6 +502,36 @@ cmd_m_y5:  ldi     0                   ; terminate string
            lbr     lineend             ; and on to the next line
 
 ; ****************************************
+; ***** Command O, Out to port       *****
+; ****************************************
+cmd_o:     sep     scall               ; move past any spaces
+           dw      trim
+           sep     scall               ; evaluate port
+           dw      evaluate
+           glo     rf                  ; check if in range
+           lbz     rangeerr            ; jump if not
+           ani     0f8h                ; check for > 7
+           lbnz    rangeerr            ; jump if too high
+           mov     rd,cmd_out          ; where to write it
+           glo     rf                  ; recover port
+           ori     060h                ; convert ot output instruction
+           str     rd
+           sep     scall               ; move past any spaces
+           dw      trim
+           lda     r8                  ; get next character
+           smi     ','                 ; must be a comma
+           lbnz    synerr              ; syntax error if not
+           sep     scall               ; move past any spaces
+           dw      trim
+           sep     scall               ; evaluate expression
+           dw      evaluate
+           dec     r2                  ; prepare for out
+           glo     rf    
+           str     r2                  ; store for out
+cmd_out:   db      0c4h
+           lbr     lineend             ; on to the next line
+
+; ****************************************
 ; ***** Command N, type if matched=0 *****
 ; ****************************************
 cmd_n:     ldi     low matched         ; point to matched flag
@@ -566,6 +599,15 @@ cmd_y:     ldi     low matched         ; point to matched flag
            lbnz    cmd_t               ; jump if matched != 0
            lbr     lineend             ; otherwise ignore rest of line
 
+experr:    sep     scall               ; display error message
+           dw      o_inmsg
+           db      'Expression error: ',0
+           lbr     errline
+
+rangeerr:  sep     scall               ; display error message
+           dw      o_inmsg
+           db      'Range error: ',0
+           lbr     errline
 
 synerr:    sep     scall               ; display error message
            dw      o_inmsg

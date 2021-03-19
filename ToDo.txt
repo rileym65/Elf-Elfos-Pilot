@@ -10,7 +10,7 @@
 
   - Implement I command
 
-  - Implement O command
+* - Implement O command
 
   - Implement F command
 
