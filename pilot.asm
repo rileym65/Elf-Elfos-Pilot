@@ -1795,7 +1795,7 @@ findno:    sep     scall               ; print error
 is_number: plo     re                  ; save original value
            smi     '0'                 ; check for below numerals
            lbnf    not_chr             ; jump if not in range
-           smi     9                   ; check high of range
+           smi     10                  ; check high of range
            lbdf    not_chr             ; jump if not in range
            lbr     is_chr              ; otherwise singal in range
 not_chr:   ldi     0                   ; signal not in range
@@ -1815,7 +1815,7 @@ is_chr:    ldi     1                   ; sginal is in range
 is_lc:     plo     re                  ; save original value
            smi     'a'                 ; check for below range
            lbnf    not_chr             ; jump if not in range
-           smi     26                  ; check high of range
+           smi     27                  ; check high of range
            lbdf    not_chr             ; jump if above range
            lbr     is_chr              ; otherwise mark in range
 
@@ -1827,7 +1827,7 @@ is_lc:     plo     re                  ; save original value
 is_uc:     plo     re                  ; save original value
            smi     'A'                 ; check for below range
            lbnf    not_chr             ; jump if not in range
-           smi     26                  ; check high of range
+           smi     27                  ; check high of range
            lbdf    not_chr             ; jump if above range
            lbr     is_chr              ; otherwise mark in range
 
