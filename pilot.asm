@@ -637,6 +637,9 @@ cmd_n:     ldi     low matched         ; point to matched flag
 cmd_t:     lda     r8                  ; read byte from arguments
            lbz     cmd_t_dn            ; jump if line end found
            plo     re                  ; save character
+           smi     123                 ; check for expression 
+           lbz     cmd_t_exp           ; jump if so
+           glo     re
            smi     '\'                 ; check for backslash
            lbz     cmd_t_esc           ; Need to check escape codes
            glo     re                  ; recover character
@@ -687,7 +690,14 @@ cmd_t_d:   smi     2                   ; check for 't'
            lbnz    cmd_t_2             ; just output character if not
            ldi     9                   ; output tab
            lbr     cmd_t_go
-
+cmd_t_exp: sep     scall               ; evaluate expression
+           dw      evaluate
+           sep     scall               ; display result
+           dw      itoa
+           lda     r8                  ; next char must be }
+           smi     '}'
+           lbnz    synerr              ; jump if not
+           lbr     cmd_t               ; keep processing line
 
 ; *****************************************
 ; ***** Command U, jump to subroutine *****
