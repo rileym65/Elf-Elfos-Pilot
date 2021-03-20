@@ -1651,12 +1651,10 @@ alloc_1:   lda     rd                  ; get flags byte
            str     r2
            glo     rf
            sm
-           plo     rf
            ghi     rc
            str     r2
            ghi     rf
            smb
-           phi     rf
            lbnf    alloc_nxt           ; jumpt if block is too small
            mov     rf,rd               ; set address for return
            dec     rd                  ; move back to flags byte
