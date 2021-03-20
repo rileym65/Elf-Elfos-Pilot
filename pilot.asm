@@ -1717,6 +1717,70 @@ dealloc:   dec     rf                  ; move to flags byte
            dec     rf
            ldi     1                   ; mark block as free
            str     rf
+heapgc:    push    rc                  ; save consumed registers
+           push    rd
+           ldi     low heap            ; need start of heap
+           plo     r9
+           lda     r9                  ; retrieve heap start address
+           phi     rd
+           lda     r9
+           plo     rd   
+heapgc_1:  lda     rd                  ; retrieve flags byte
+           lbz     heapgc_dn           ; return if end of heap found
+           plo     re                  ; save copy of flags
+           lda     rd                  ; retrieve block size
+           phi     rc
+           lda     rd
+           plo     rc
+           glo     rd                  ; RF=RD+RC, point to next block
+           str     r2
+           glo     rc
+           add
+           plo     rf
+           ghi     rd
+           str     r2
+           ghi     rc
+           adc
+           phi     rf
+           lda     rf                  ; retrieve flags for next block
+           lbz     heapgc_dn           ; return if on last block
+           smi     2                   ; is block allocated?
+           lbz     heapgc_a            ; jump if so
+           glo     re                  ; check flags of current block
+           smi     2                   ; is it allocated
+           lbz     heapgc_a            ; jump if so
+           lda     rf                  ; retrieve next block size into RF
+           plo     re
+           lda     rf
+           plo     rf
+           glo     re
+           phi     rf
+           inc     rf                  ; add 3 bytes for header
+           inc     rf
+           inc     rf
+           glo     rf                  ; RC += RF, combine sizes
+           str     r2
+           glo     rc
+           add
+           plo     rc
+           ghi     rf
+           str     r2
+           ghi     rc
+           adc
+           phi     rc
+           dec     rd                  ; write size of combined blocks
+           glo     rc
+           str     rd
+           dec     rd
+           ghi     rc
+           str     rd
+           dec     rd                  ; move back to flags byte
+           lbr     heapgc_1            ; keep checking for merges
+heapgc_a:  mov     rd,rf               ; move pointer to next block
+           dec     rd                  ; move back to flags byte
+           lbr     heapgc_1            ; and check next block
+heapgc_dn: pop     rd                  ; recover consumed registers
+           pop     rc
            sep     sret                ; return to caller
 
 ; *************************************************************************

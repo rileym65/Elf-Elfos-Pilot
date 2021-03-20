@@ -4,7 +4,7 @@
 *   - Set $LEFT, $MATCH, and $RIGHT
 
   - Heap manager
-    - consolidate unallocated blocks
+*   - consolidate unallocated blocks
     - split block when only allocating a small portion of it
     - heap/variable table collision detection
 
@@ -18,4 +18,16 @@
 
   - Implement C command with string expressions
 
-  
+  - Implement B command
+
+  - Implement S command
+
+  - Implement \ escapes in T text
+    - \e
+    - \r
+    - \n
+    - \t
+    - \b
+
+  - Implement {} expressions in T text
+
