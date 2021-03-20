@@ -1535,6 +1535,8 @@ newvar2:   dec     r8                  ; move back to non-var character
            ldn     rd
            or
            str     rd                  ; write combined value
+           sep     scall               ; check for out of memory
+           dw      checkeom
 vexists:   sep     sret                ; and return to caller
 
 ; ***********************************************************
@@ -1740,6 +1742,8 @@ alloc_new: lda     r9                  ; retrieve start of heap
            dec     r9
            ghi     rd
            str     r9
+           sep     scall               ; check for out of memory
+           dw      checkeom
            sep     sret                ; return to caller
 
 ; **************************************
@@ -2166,6 +2170,36 @@ varchr3:   plo     re                  ; save value
            lbnz    not_chr             ; false if not
            lbr     is_chr              ; otherwise true
 
+; ***********************************
+; ***** Check for out of memory *****
+; ***********************************
+checkeom:  push    rc                  ; save consumed register
+           ldi     low varend          ; get end of variable table
+           plo     r9
+           lda     r9                  ; retrieve variable table end
+           phi     rc
+           lda     r9
+           plo     rc
+           ldi     low heap            ; point to heap start
+           plo     r9
+           inc     r9                  ; point to lsb
+           ldn     r9                  ; get heap
+           str     r2
+           glo     rc                  ; subtract from variable table end
+           sm
+           dec     r9                  ; point to msb
+           ldn     r9                  ; retrieve it
+           str     r2
+           ghi     rc                  ; subtract from variable table end
+           smb
+           lbdf    oom                 ; jump of out of memory
+           pop     rc                  ; recover consumed reigster
+           sep     sret                ; and return to caller
+oom:       sep     scall               ; display out of memory error
+           dw      o_inmsg
+           db      'Out of memory: ',0
+           lbr     errline             ; show line of error and exit
+                   
 ; ****************************************
 ; ***** Convert ASCII to integer     *****
 ; ***** R8 - Pointer to ASCII number *****
