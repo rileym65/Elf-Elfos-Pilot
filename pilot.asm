@@ -492,10 +492,33 @@ cmd_in:    db      0c4h
 ; ************************************
 cmd_j:     sep     scall               ; move past any spaces
            dw      trim
-           ldn     r8                  ; get first byte of argument
-           smi     '*'                 ; must be a star
-           lbnz    synerr              ; otherwise error
+cmd_j_2:   ldn     r8                  ; get first byte of argument
+           smi     '*'                 ; check for a star
+           lbnz    cmd_j_1             ; otherwise computed jump
            lbr     findline            ; find line with label
+cmd_j_1:   sep     scall               ; compute expression
+           dw      evaluate
+           sep     scall               ; move past any spaces
+           dw      trim
+           ldn     r8                  ; get next character
+           smi     ','                 ; check for comma
+           lbz     cmd_j_a             ; jump if on-goto style jump
+     lbr   synerr                      ; otherwise syntax error
+cmd_j_a:   glo     rf                  ; get expression result
+           lbz     lineend             ; no jump if zero
+           inc     r8                  ; move past comma
+cmd_j_a1:  sep     scall               ; move past any spaces
+           dw      trim
+           ldn     r8                  ; get byte from line
+           lbz     lineend             ; no jump if end hit
+           dec     rf                  ; decrement expression result
+           glo     rf                  ; see if at correct entry
+           lbz     cmd_j_2             ; attempt jump
+cmd_j_a2:  lda     r8                  ; get next byte
+           lbz     lineend             ; no jump if end of line hit
+           smi     ','                 ; check for a comma
+           lbnz    cmd_j_a2            ; keep looking
+           lbr     cmd_j_a1            ; check for correct slot
 
 ; ****************************************
 ; ***** Command K, type ASCII code   *****
@@ -704,9 +727,9 @@ cmd_t_exp: sep     scall               ; evaluate expression
 ; *****************************************
 cmd_u:     sep     scall               ; move past any spaces
            dw      trim
-           ldn     r8                  ; get first byte of argument
-           smi     '*'                 ; must be a star
-           lbnz    synerr              ; otherwise error
+cmd_u_2:   ldn     r8                  ; get first byte of argument
+           smi     '*'                 ; check for a star
+           lbnz    cmd_u_1             ; otherwise computed jump
            ghi     r7                  ; place current stack pointer on stack
            str     ra
            inc     ra
@@ -714,6 +737,29 @@ cmd_u:     sep     scall               ; move past any spaces
            str     ra
            inc     ra
            lbr     findline            ; find line with label
+cmd_u_1:   sep     scall               ; compute expression
+           dw      evaluate
+           sep     scall               ; move past any spaces
+           dw      trim
+           ldn     r8                  ; get next character
+           smi     ','                 ; check for comma
+           lbz     cmd_u_a             ; jump if on-goto style jump
+     lbr   synerr                      ; otherwise syntax error
+cmd_u_a:   glo     rf                  ; get expression result
+           lbz     lineend             ; no jump if zero
+           inc     r8                  ; move past comma
+cmd_u_a1:  sep     scall               ; move past any spaces
+           dw      trim
+           ldn     r8                  ; get byte from line
+           lbz     lineend             ; no jump if end hit
+           dec     rf                  ; decrement expression result
+           glo     rf                  ; see if at correct entry
+           lbz     cmd_u_2             ; attempt jump
+cmd_u_a2:  lda     r8                  ; get next byte
+           lbz     lineend             ; no jump if end of line hit
+           smi     ','                 ; check for a comma
+           lbnz    cmd_u_a2            ; keep looking
+           lbr     cmd_u_a1            ; check for correct slot
 
 ; *****************************************
 ; ***** Command Y, type if matched<>0 *****
@@ -2007,6 +2053,9 @@ strcmp1:   lda     r8                  ; get byte from string 1
            lbz     strcmpe             ; jump if end of string 1
            smi     ' '                 ; space also terminates
            lbz     strcmpe
+           ldn     r2                  ; recover character
+           smi     ','                 ; comma also terminates
+           lbz     strcmpe
            lda     rf                  ; get byte from string2
            sm                          ; compare to byte from string1
            lbz     strcmp1             ; jumpt if a match so far
@@ -2200,6 +2249,28 @@ oom:       sep     scall               ; display out of memory error
            db      'Out of memory: ',0
            lbr     errline             ; show line of error and exit
                    
+; *****************************************
+; ***** Check line for character      *****
+; ***** R8 - text to serach           *****
+; *****  D - character to serach for  *****
+; ***** Returns: DF=1 character found *****
+; *****          DF=0 not found       *****
+; *****************************************
+haschr:    plo     re                  ; save character
+           push    r8                  ; save position
+           glo     re                  ; recover character
+           str     r2                  ; store for comparisons
+haschr_1:  lda     r8                  ; get next byte ffomr line
+           lbz     haschr_n            ; jump if end reached
+           sm                          ; compare character to search char
+           lbnz    haschr_1            ; if not, keep looking
+           ldi     1                   ; signal found
+haschr_2:  shr
+           pop     r8                  ; recover address
+           sep     sret                ; and return
+haschr_n:  ldi     0                   ; signal not found
+           lbr     haschr_2            ; and return
+
 ; ****************************************
 ; ***** Convert ASCII to integer     *****
 ; ***** R8 - Pointer to ASCII number *****

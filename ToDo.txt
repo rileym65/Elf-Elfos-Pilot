@@ -34,5 +34,5 @@
 
   - Implement computed J/U
   
-  - Implement on-goto style J/U
+* - Implement on-goto style J/U
 
