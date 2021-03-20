@@ -638,7 +638,7 @@ cmd_t:     lda     r8                  ; read byte from arguments
            lbz     cmd_t_dn            ; jump if line end found
            plo     re                  ; save character
            smi     '\'                 ; check for backslash
-           lbz     lineend             ; this end output without cr/lf
+           lbz     cmd_t_esc           ; Need to check escape codes
            glo     re                  ; recover character
            smi     '#'                 ; check for integer variable
            lbnz    cmd_t_1             ; jump if not
@@ -658,12 +658,36 @@ cmd_t_1a:  lda     rf                  ; get byte from string
            dw      o_type
            lbr     cmd_t_1a            ; keep display until terminator
 cmd_t_2:   glo     re                  ; recover character
-           sep     scall               ; display byte
+cmd_t_go:  sep     scall               ; display byte
            dw      o_type
            lbr     cmd_t               ; loop until end of line
 cmd_t_dn:  sep     scall               ; display cr/lf
            dw      crlf
            lbr     lineend             ; and then process next line
+cmd_t_esc: lda     r8                  ; get next character
+           lbz     lineend             ; end of line is done
+           plo     re                  ; save a copy of it
+           smi     'b'                 ; check for b
+           lbnz    cmd_t_a             ; jump if not
+           ldi     7                   ; bell character
+           lbr     cmd_t_go            ; output it
+cmd_t_a:   smi     3                   ; check for 'e'
+           lbnz    cmd_t_b             ; jump if not
+           ldi     27                  ; send esc
+           lbr     cmd_t_go
+cmd_t_b:   smi     9                   ; check for 'n'
+           lbnz    cmd_t_c             ; jump if not
+           ldi     10                  ; output LF
+           lbr     cmd_t_go
+cmd_t_c:   smi     4                   ; check for 'r'
+           lbnz    cmd_t_d             ; jump if not
+           ldi     13                  ; output CR
+           lbr     cmd_t_go
+cmd_t_d:   smi     2                   ; check for 't'
+           lbnz    cmd_t_2             ; just output character if not
+           ldi     9                   ; output tab
+           lbr     cmd_t_go
+
 
 ; *****************************************
 ; ***** Command U, jump to subroutine *****

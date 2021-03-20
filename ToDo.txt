@@ -23,11 +23,12 @@
   - Implement S command
 
   - Implement \ escapes in T text
-    - \e
-    - \r
-    - \n
-    - \t
-    - \b
+*   - \e
+*   - \r
+*   - \n
+*   - \t
+*   - \b
+*   - \char
 
   - Implement {} expressions in T text
 
