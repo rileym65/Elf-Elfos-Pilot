@@ -513,7 +513,11 @@ cmd_j_a1:  sep     scall               ; move past any spaces
            lbz     lineend             ; no jump if end hit
            dec     rf                  ; decrement expression result
            glo     rf                  ; see if at correct entry
-           lbz     cmd_j_2             ; attempt jump
+           lbnz    cmd_j_a2            ; jump if not
+           ldn     r8                  ; get byte from label
+           smi     '*'                 ; it must be a star
+           lbnz    synerr              ; otherwise syntax error
+           lbr     findline            ; attempt jump
 cmd_j_a2:  lda     r8                  ; get next byte
            lbz     lineend             ; no jump if end of line hit
            smi     ','                 ; check for a comma
@@ -727,10 +731,10 @@ cmd_t_exp: sep     scall               ; evaluate expression
 ; *****************************************
 cmd_u:     sep     scall               ; move past any spaces
            dw      trim
-cmd_u_2:   ldn     r8                  ; get first byte of argument
+           ldn     r8                  ; get first byte of argument
            smi     '*'                 ; check for a star
            lbnz    cmd_u_1             ; otherwise computed jump
-           ghi     r7                  ; place current stack pointer on stack
+cmd_u_2:   ghi     r7                  ; place current stack pointer on stack
            str     ra
            inc     ra
            glo     r7
@@ -754,6 +758,10 @@ cmd_u_a1:  sep     scall               ; move past any spaces
            lbz     lineend             ; no jump if end hit
            dec     rf                  ; decrement expression result
            glo     rf                  ; see if at correct entry
+           lbnz    cmd_u_a2            ; jump if not
+           ldn     r8                  ; get character from line
+           smi     '*'                 ; must be a star
+           lbnz    synerr              ; otherwise syntax error
            lbz     cmd_u_2             ; attempt jump
 cmd_u_a2:  lda     r8                  ; get next byte
            lbz     lineend             ; no jump if end of line hit
