@@ -3,9 +3,9 @@
 *   - Allow strings for match option
 *   - Set $LEFT, $MATCH, and $RIGHT
 
-  - Heap manager
+* - Heap manager
 *   - consolidate unallocated blocks
-    - split block when only allocating a small portion of it
+*   - split block when only allocating a small portion of it
 *   - heap/variable table collision detection
 
 * - Implement I command

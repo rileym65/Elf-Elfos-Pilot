@@ -1917,18 +1917,57 @@ alloc_1:   lda     rd                  ; get flags byte
            str     r2
            glo     rf
            sm
+           plo     rf
            ghi     rc
            str     r2
            ghi     rf
            smb
+           phi     rf                  ; RF now has difference
            lbnf    alloc_nxt           ; jumpt if block is too small
-           mov     rf,rd               ; set address for return
+           ghi     rf                  ; see if need to split block
+           lbnz    alloc_sp            ; jump if so
+           glo     rf                  ; get low byte of difference
+           ani     0f8h                ; want to see if at least 8 extra bytes
+           lbnz    alloc_sp            ; jump if so
+alloc_2:   mov     rf,rd               ; set address for return
            dec     rd                  ; move back to flags byte
            dec     rd
            dec     rd
            ldi     2                   ; mark block as used
            str     rd
            sep     sret                ; and return to caller
+alloc_sp:  push    rd                  ; save this address
+           dec     rd                  ; move to lsb of block size
+           glo     rc                  ; write requested size
+           str     rd
+           dec     rd
+           ghi     rc                  ; write msb of size
+           str     rd
+           inc     rd                  ; move back to data
+           inc     rd
+           glo     rc                  ; now add size
+           str     r2
+           glo     rd
+           add
+           plo     rd
+           ghi     rd
+           str     r2
+           ghi     rc
+           adc
+           phi     rd                  ; rd now points to new block
+           ldi     1                   ; mark as a free block
+           str     rd
+           inc     rd
+           dec     rf                  ; remove 3 bytes from block size
+           dec     rf
+           dec     rf
+           ghi     rf                  ; and write into block header
+           str     rd
+           inc     rd
+           glo     rf
+           str     rd
+           pop     rd                  ; recover address
+           lbr     alloc_2             ; finish allocating
 alloc_nxt: glo     rf                  ; add block size to address
            str     r2
            glo     rd
