@@ -342,6 +342,9 @@ c_nocond:  sep     scall               ; move past any spaces
            glo     rb                  ; check for @ command
            smi     '@'
            lbz     cmd_at
+           glo     rb                  ; check for B command
+           smi     'B'
+           lbz     cmd_b
 
            lbr     synerr              ; syntax error if invalid command
 
@@ -405,6 +408,40 @@ cmd_a_4:   sep     scall               ; move past any spaces
            lbnz    lineend             ; jump if not
            inc     r8                  ; move past comma
            lbr     cmd_a               ; and get more input
+
+; *****************************************
+; ***** Command B, Block alloc/dalloc *****
+; *****************************************
+cmd_b:     sep     scall               ; move past any leading spaces
+           dw      trim
+           ldi     '='                 ; check for allocate form
+           sep     scall
+           dw      haschr
+           lbdf    cmd_b_a             ; jump if equals found
+           sep     scall               ; evaluate expression
+           dw      evaluate
+           sep     scall               ; deallocate memory block
+           dw      dealloc
+           lbr     lineend             ; end of command
+cmd_b_a:   ldn     r8                  ; get first byte
+           smi     '#'                 ; check for hashmark
+           lbnz    cmd_b_a1            ; jump if not
+           inc     r8                  ; move past hash
+cmd_b_a1:  push    r8                  ; save position of variable name
+cmd_b_a2:  lda     r8                  ; read nextbyte
+           lbz     synerr              ; syntax error if line end found
+           smi     '='                 ; looking for = sign
+           lbnz    cmd_b_a2            ; loop until found
+           sep     scall               ; evalute for block size
+           dw      evaluate
+           mov     rc,rf               ; move block size for allocate
+           sep     scall               ; allocate the memory block
+           dw      alloc
+           pop     r8                  ; recover address of variable name
+           sep     scall               ; set variable to block address
+           dw      setivar
+           lbr     lineend             ; then on to next line
+
 
 ; ***********************************
 ; ***** Command C, Compute      *****

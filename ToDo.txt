@@ -18,7 +18,7 @@
 
   - Implement C command with string expressions
 
-  - Implement B command
+* - Implement B command
 
 * - Implement S command
 
