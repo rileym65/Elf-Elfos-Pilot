@@ -16,7 +16,7 @@
 
 * - Implement K command
 
-  - Implement C command with string expressions
+* - Implement C command with string expressions
 
 * - Implement B command
 

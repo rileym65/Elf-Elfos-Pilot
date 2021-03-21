@@ -449,6 +449,9 @@ cmd_b_a2:  lda     r8                  ; read nextbyte
 cmd_c:     sep     scall               ; move past any leading spaces
            dw      trim
            ldn     r8                  ; get first byte of varname
+           smi     '$'                 ; check for string var
+           lbz     cmd_c_s             ; jump if string
+           ldn     r8                  ; get first byte of varname
            smi     '#'                 ; check for hash
            lbnz    cmd_c_1             ; jump if not
            inc     r8                  ; move past hash
@@ -463,6 +466,18 @@ cmd_c_a:   lda     r8                  ; read next byte
            sep     scall               ; set variable to value
            dw      setivar
            lbr     lineend             ; and then continue
+cmd_c_s:   inc     r8                  ; move past $ symbol
+           push    r8                  ; save var name address
+cmd_c_s_1: lda     r8                  ; read next byte
+           lbz     synerr              ; syntax error if end of line found
+           smi     '='                 ; looking for = sign
+           lbnz    cmd_c_s_1           ; jump if not found
+           sep     scall               ; perform string evaluation
+           dw      sevaluate
+           pop     r8                  ; recover varname address
+           sep     scall               ; and set it
+           dw      setsvar
+           lbr     lineend             ; done with line
 
 ; **********************************************
 ; ***** Command E, exit subroutine/program *****
@@ -1649,6 +1664,53 @@ ops:       db      ('+'+080h),OP_ADD
 ; *****              End of  Expression Evaluator                 *****
 ; *********************************************************************
 
+; *********************************************************************
+; *****               String Expression Evaluator                 *****
+; *********************************************************************
+
+sevaluate: mov     rd,dta              ; Where to assemble new string
+seval_lp:  sep     scall               ; move past any spaces
+           dw      trim
+           lda     r8                  ; get byte from program
+           lbz     seval_dn            ; jump if end of program line
+           plo     re                  ; save a copy
+           smi     34                  ; check for quote
+           lbz     seval_qt            ; jump if quoted text
+           glo     re                  ; recover character
+           smi     '$'                 ; check for string variable
+           lbz     seval_st            ; jump if so
+           lbr     synerr              ; otherwise syntax error
+seval_qt:  lda     r8                  ; get next byte
+           lbz     synerr              ; syntax error if end of line
+           plo     re                  ; save a copy
+           smi     34                  ; is it a quote
+           lbz     seval_nx            ; jump if so
+           glo     re                  ; recover character
+           str     rd                  ; store into output
+           inc     rd
+           lbr     seval_qt            ; keep copying quoted characters
+seval_st:  sep     scall               ; retrieve string address
+           dw      getsvar
+seval_sta: lda     rf                  ; get byte from variable
+           lbz     seval_nx            ; done with string
+           str     rd                  ; store into destination
+           inc     rd
+           lbr     seval_sta           ; keep copying string
+seval_nx:  sep     scall               ; move past any spaces
+           dw      trim
+           lda     r8                  ; get nextbyte
+           lbz     seval_dn            ; jump if end of line
+           smi     '+'                 ; only plus is allowed
+           lbz     seval_lp            ; process next token
+           lbr     synerr              ; otherwise syntax error
+seval_dn:  ldi     0                   ; terminate constructed string
+           str     rd
+           mov     rf,dta              ; point back to beginning of string
+           sep     sret                ; and return to caller
+
+; *********************************************************************
+; *****            End of String Expression Evaluator             *****
+; *********************************************************************
 
 ; *************************************************************************
 ; *****                     Variable Handling                         *****
