@@ -24,7 +24,7 @@
 
 * - Implement V command
 
-  - Implement @ command
+* - Implement @ command
 
 * - Implement \ escapes in T text
 *   - \e

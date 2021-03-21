@@ -339,6 +339,9 @@ c_nocond:  sep     scall               ; move past any spaces
            glo     rb                  ; check for V command
            smi     'V'
            lbz     cmd_v
+           glo     rb                  ; check for @ command
+           smi     '@'
+           lbz     cmd_at
 
            lbr     synerr              ; syntax error if invalid command
 
@@ -864,6 +867,44 @@ cmd_y:     ldi     low matched         ; point to matched flag
            ldn     r9                  ; get matched flag
            lbnz    cmd_t               ; jump if matched != 0
            lbr     lineend             ; otherwise ignore rest of line
+
+; *****************************************
+; ***** Command @, Call ML subroutine *****
+; *****************************************
+cmd_at:    sep     scall               ; move past any leading spaces
+           dw      trim
+           ldn     r8                  ; get first byte of varname
+           smi     '#'                 ; check for hash
+           lbnz    cmd_at_1            ; jump if not
+           inc     r8                  ; move past hash
+cmd_at_1:  push    r8                  ; save what should be a variable
+cmd_at_a:  lda     r8                  ; read next byte
+           lbz     synerr              ; syntax error if end of line found
+           smi     '='                 ; looking for equals
+           lbnz    cmd_at_a            ; loop until = found
+           sep     scall               ; evaluate expression
+           dw      evaluate
+           mov     rc,cmd_at_ad        ; point to address
+           ghi     rf                  ; write address into jump
+           str     rc
+           inc     rc
+           glo     rf
+           str     rc
+           sep     scall               ; move past any spaces
+           dw      trim
+           lda     r8                  ; see if a parameter is provided
+           lbz     cmd_at_go           ; jump if not
+           smi     ','
+           lbnz    synerr              ; if not comma, then syntax error
+           sep     scall               ; evaluate argument
+           dw      evaluate
+cmd_at_go: sep     scall               ; call the routine
+cmd_at_ad: dw      o_wrmboot
+           pop     r8                  ; pop what should be variable name
+           sep     scall               ; set variable to value
+           dw      setivar
+           lbr     lineend             ; process next line
+
 
 experr:    sep     scall               ; display error message
            dw      o_inmsg
