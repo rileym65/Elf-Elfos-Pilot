@@ -330,6 +330,9 @@ c_nocond:  sep     scall               ; move past any spaces
            glo     rb                  ; check for F command
            smi     'F'
            lbz     cmd_f
+           glo     rb                  ; check for S command
+           smi     'S'
+           lbz     cmd_s
            glo     rb                  ; check for Q command
            smi     'Q'
            lbz     o_wrmboot
@@ -657,6 +660,52 @@ cmd_n:     ldi     low matched         ; point to matched flag
            ldn     r9                  ; get matched flag
            lbz     cmd_t               ; jump if matched == 0
            lbr     lineend             ; otherwise ignore rest of line
+
+; ****************************************
+; ***** Command S, Read/Write memory *****
+; ****************************************
+cmd_s:     sep     scall               ; move past any leading spaces
+           dw      trim
+           ldi     ','                 ; need to see if write mode
+           sep     scall               ; is a comma present
+           dw      haschr
+           lbdf    cmd_s_2             ; jump if so
+           ldn     r8                  ; get first byte of varname
+           smi     '#'                 ; check for hash
+           lbnz    cmd_s_1             ; jump if not
+           inc     r8                  ; move past hash
+cmd_s_1:   push    r8                  ; save what should be a variable
+cmd_s_a:   lda     r8                  ; read next byte
+           lbz     synerr              ; syntax error if end of line found
+           smi     '='                 ; looking for equals
+           lbnz    cmd_s_a             ; loop until = found
+           sep     scall               ; evaluate expression
+           dw      evaluate
+           lda     rf                  ; read byte from memory
+           plo     rf
+           ldi     0                   ; clear high byte
+           phi     rf
+           pop     r8                  ; pop address of varname
+           sep     scall               ; set variable to read value
+           dw      setivar
+           lbr     lineend             ; then on to next line
+cmd_s_2:   sep     scall               ; get address
+           dw      evaluate
+           mov     rc,rf               ; move address to rc
+cmd_s_2a:  sep     scall               ; move past any spaces
+           dw      trim
+           lda     r8                  ; get next byte from program
+           lbz     lineend             ; jump if end of line
+           smi     ','                 ; otherwise must be comma
+           lbnz    synerr              ; if not, syntax error
+           push    rc                  ; save address
+           sep     scall               ; evaluate next argument
+           dw      evaluate
+           pop     rc                  ; recover address
+           glo     rf                  ; write argument to memory
+           str     rc
+           inc     rc                  ; and increment
+           lbr     cmd_s_2a            ; loop for more
 
 ; ***************************
 ; ***** Command T, Type *****

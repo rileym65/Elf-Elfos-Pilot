@@ -20,7 +20,7 @@
 
   - Implement B command
 
-  - Implement S command
+* - Implement S command
 
 * - Implement \ escapes in T text
 *   - \e
