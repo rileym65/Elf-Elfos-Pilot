@@ -892,6 +892,12 @@ cmd_v_1:   sep     scall               ; attemp to find variable
            dw      findvar
            lbnf    varerr              ; error out if not found
            pop     r8                  ; pop what should be variable name
+           lda     rf                  ; retrieve where string is stored
+           plo     re
+           ldn     rf
+           plo     rf
+           glo     re
+           phi     rf
            sep     scall               ; set variable to value
            dw      setivar
            lbr     lineend             ; and then continue
