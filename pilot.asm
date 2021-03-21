@@ -336,6 +336,9 @@ c_nocond:  sep     scall               ; move past any spaces
            glo     rb                  ; check for Q command
            smi     'Q'
            lbz     o_wrmboot
+           glo     rb                  ; check for V command
+           smi     'V'
+           lbz     cmd_v
 
            lbr     synerr              ; syntax error if invalid command
 
@@ -818,6 +821,41 @@ cmd_u_a2:  lda     r8                  ; get next byte
            lbnz    cmd_u_a2            ; keep looking
            lbr     cmd_u_a1            ; check for correct slot
 
+; ***********************************
+; ***** Command V, VarPtr       *****
+; ***********************************
+cmd_v:     sep     scall               ; move past any leading spaces
+           dw      trim
+           push    r8                  ; save destination variable name
+cmd_v_a:   lda     r8                  ; read next byte
+           lbz     synerr              ; syntax error if end of line found
+           smi     '='                 ; looking for equals
+           lbnz    cmd_v_a             ; loop until = found
+           sep     scall               ; move past any spaces
+           dw      trim
+           ldn     r8                  ; get first byte of varname
+           str     r2                  ; store for comparisons
+           ldi     '$'
+           sm
+           lbz     cmd_v_s             ; jump if string variable
+           ldi     '#'                 ; check for explicit integer
+           sm
+           lbnz    cmd_v_i             ; jump if integer
+           inc     r8                  ; move past hash mark
+cmd_v_i:   ldi     1                   ; want to search for integer variable
+           plo     rc
+           lbr     cmd_v_1             ; go find it
+cmd_v_s:   inc     r8                  ; move past $ symbol
+           ldi     2                   ; want to search for string variable
+           plo     rc
+cmd_v_1:   sep     scall               ; attemp to find variable
+           dw      findvar
+           lbnf    varerr              ; error out if not found
+           pop     r8                  ; pop what should be variable name
+           sep     scall               ; set variable to value
+           dw      setivar
+           lbr     lineend             ; and then continue
+
 ; *****************************************
 ; ***** Command Y, type if matched<>0 *****
 ; *****************************************
@@ -835,6 +873,11 @@ experr:    sep     scall               ; display error message
 rangeerr:  sep     scall               ; display error message
            dw      o_inmsg
            db      'Range error: ',0
+           lbr     errline
+
+varerr:    sep     scall               ; display error message
+           dw      o_inmsg
+           db      'Variable not found: ',0
            lbr     errline
 
 synerr:    sep     scall               ; display error message
