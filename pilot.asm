@@ -545,7 +545,16 @@ cmd_j_1:   sep     scall               ; compute expression
            ldn     r8                  ; get next character
            smi     ','                 ; check for comma
            lbz     cmd_j_a             ; jump if on-goto style jump
-     lbr   synerr                      ; otherwise syntax error
+           sep     scall               ; evaluate expression
+           dw      evaluate
+           mov     rb,dta              ; where to assemble label
+           ldi     '*'                 ; need to start with *
+           str     rb
+           inc     rb
+           sep     scall               ; convert number to string
+           dw      itoa
+           mov     r8,dta              ; point to constructed label
+           lbr     findline            ; and attempt to jump
 cmd_j_a:   glo     rf                  ; get expression result
            lbz     lineend             ; no jump if zero
            inc     r8                  ; move past comma
@@ -844,7 +853,16 @@ cmd_u_1:   sep     scall               ; compute expression
            ldn     r8                  ; get next character
            smi     ','                 ; check for comma
            lbz     cmd_u_a             ; jump if on-goto style jump
-     lbr   synerr                      ; otherwise syntax error
+           sep     scall               ; evaluate expression
+           dw      evaluate
+           mov     rb,dta              ; where to assemble label
+           ldi     '*'                 ; need to start with *
+           str     rb
+           inc     rb
+           sep     scall               ; convert number to string
+           dw      itoa
+           mov     r8,dta              ; point to constructed label
+           lbr     cmd_u_2             ; and attempt to jump
 cmd_u_a:   glo     rf                  ; get expression result
            lbz     lineend             ; no jump if zero
            inc     r8                  ; move past comma
