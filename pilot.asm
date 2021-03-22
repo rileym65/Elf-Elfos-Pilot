@@ -74,6 +74,7 @@ p_alloc:   lbr     alloc
 p_dealloc: lbr     dealloc
 p_itoa:    lbr     itoa
 p_atoi:    lbr     atoi
+p_eval:    lbr     evaluate
 
 start:     sep     scall               ; display header
            dw      o_inmsg
