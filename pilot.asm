@@ -65,6 +65,16 @@ ef3:       bn4     ef4                 ; jump if EF4=0
            ori     8                   ; signal on
 ef4:       sep     sret                ; return to caller
 
+p_setivar: lbr     setivar
+p_getivar: lbr     getivar
+p_setsvar: lbr     setsvar
+p_getsvar: lbr     getsvar
+p_findvar: lbr     findvar
+p_alloc:   lbr     alloc
+p_dealloc: lbr     dealloc
+p_itoa:    lbr     itoa
+p_atoi:    lbr     atoi
+
 start:     sep     scall               ; display header
            dw      o_inmsg
            db      'Rc/Pilot+ 0.9',10,13,0
