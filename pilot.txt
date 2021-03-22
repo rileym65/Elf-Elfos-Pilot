@@ -1,0 +1,50 @@
+A:{var}{,var}{,...}          - Accept input
+B:expr                       - Deallocate block of memory
+B:var=expr                   - Allocate block of memory
+C:var=expr                   - Compute
+C:$var=$sexpr                - String expressions
+E:                           - End subroutine/program
+F:var                        - Read EF lines
+I:var=expr                   - Read input port
+J:*label                     - jump to labeled line
+J:expr                       - Computed jump
+J:expr,*label{,*label},{...} - On-goto style J
+K:value{,value}{,...}        - Output values as ASCII
+M:text{,text}{,$var}{,...}   - Match
+N:text                       - Equivalent to TN
+O:port,expr                  - Write to output port
+Q:                           - Quit to OS
+R:text                       - Remark
+S:var=addr                   - Read byte from memory
+S:addr,expr{,expr},{,...}    - Write byte to memory
+T:text                       - Type output
+U:*label                     - call subroutine
+U:expr                       - Computed call
+U:expr,*label,...            - On-goto style U
+V:var=[var|$var]             - Return address of var's data
+Y:text                       - Equivalent to TY
+@:var=addr{,expr}            - Call ML subroutine
+
+Command format:
+
+[*label] command{cond}:operands
+cond = Y | N | (expression)
+
+expressions allow: +, -, *, /, &, |, ^, <, <=, >, >=, =, <>, (, )
+
+Notes:
+  On T command, if line ends with \ then no CR will be output
+   \e
+   \r
+   \n
+   \t
+   \b
+   \char
+   {expr}
+
+
+  M will set $MATCH to matched text, $LEFT to text before match,
+    and $RIGHT to text after match
+
+  M can use text or string variables as search options
+
