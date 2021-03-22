@@ -289,63 +289,44 @@ c_nocond:  sep     scall               ; move past any spaces
 ; ***** Now process the command *****
 ; ***********************************
            glo     rb                  ; get command
-           smi     'A'                 ; check for A command
-           lbz     cmd_a
-           glo     rb                  ; get command
-           smi     'C'                 ; check for C command
-           lbz     cmd_c
-           glo     rb                  ; get command
-           smi     'E'                 ; check for E command
-           lbz     cmd_e
-           glo     rb                  ; check for T command
-           smi     'T'
-           lbz     cmd_t
-           glo     rb                  ; check for N command
-           smi     'N'
-           lbz     cmd_n
-           glo     rb                  ; check for Y command
-           smi     'Y'
-           lbz     cmd_y
-           glo     rb                  ; check for J command
-           smi     'J'
-           lbz     cmd_j
-           glo     rb                  ; check for U command
-           smi     'U'
-           lbz     cmd_u
-           glo     rb                  ; check for R command
-           smi     'R'
-           lbz     lineend
-           glo     rb                  ; check for M command
-           smi     'M'
-           lbz     cmd_m
-           glo     rb                  ; check for O command
-           smi     'O'
-           lbz     cmd_o
-           glo     rb                  ; check for K command
-           smi     'K'
-           lbz     cmd_k
-           glo     rb                  ; check for I command
-           smi     'I'
-           lbz     cmd_i
-           glo     rb                  ; check for F command
-           smi     'F'
-           lbz     cmd_f
-           glo     rb                  ; check for S command
-           smi     'S'
-           lbz     cmd_s
-           glo     rb                  ; check for Q command
-           smi     'Q'
-           lbz     o_wrmboot
-           glo     rb                  ; check for V command
-           smi     'V'
-           lbz     cmd_v
-           glo     rb                  ; check for @ command
            smi     '@'
            lbz     cmd_at
-           glo     rb                  ; check for B command
-           smi     'B'
+           smi     1                   ; check for A command
+           lbz     cmd_a
+           smi     1                   ; check for B command
            lbz     cmd_b
-
+           smi     1                   ; check for C command
+           lbz     cmd_c
+           smi     2                   ; check for E command
+           lbz     cmd_e
+           smi     1                   ; check for F command
+           lbz     cmd_f
+           smi     3                   ; check for I command
+           lbz     cmd_i
+           smi     1                   ; check for J command
+           lbz     cmd_j
+           smi     1                   ; check for K command
+           lbz     cmd_k
+           smi     2                   ; check for M command
+           lbz     cmd_m
+           smi     1                   ; check for N command
+           lbz     cmd_n
+           smi     1                   ; check for O command
+           lbz     cmd_o
+           smi     2                   ; check for Q command
+           lbz     o_wrmboot
+           smi     1                   ; check for R command
+           lbz     lineend
+           smi     1                   ; check for S command
+           lbz     cmd_s
+           smi     1                   ; check for T command
+           lbz     cmd_t
+           smi     1                   ; check for U command
+           lbz     cmd_u
+           smi     1                   ; check for V command
+           lbz     cmd_v
+           smi     3                   ; check for Y command
+           lbz     cmd_y
            lbr     synerr              ; syntax error if invalid command
 
 ; *************************************************
@@ -781,8 +762,12 @@ cmd_t:     lda     r8                  ; read byte from arguments
            lbnz    cmd_t_1             ; jump if not
            sep     scall               ; get variable value
            dw      getivar
+           mov     rb,dta              ; where to build it
            sep     scall               ; and display it
            dw      itoa
+           mov     rf,dta              ; now display it
+           sep     scall
+           dw      o_msg
            lbr     cmd_t               ; loop for more characters
 cmd_t_1:   glo     re                  ; recover character
            smi     '$'                 ; check for string variable
@@ -826,8 +811,12 @@ cmd_t_d:   smi     2                   ; check for 't'
            lbr     cmd_t_go
 cmd_t_exp: sep     scall               ; evaluate expression
            dw      evaluate
+           mov     rb,dta              ; where to put it
            sep     scall               ; display result
            dw      itoa
+           mov     rf,dta              ; now display it
+           sep     scall
+           dw      o_msg
            lda     r8                  ; next char must be }
            smi     '}'
            lbnz    synerr              ; jump if not
@@ -2262,6 +2251,7 @@ tobcdlp4:  lda     rd           ; get current cell
 ; ***************************************************
 ; ***** Output 16-bit integer                   *****
 ; ***** RF - 16-bit integer                     *****
+; ***** RB - where to put it                    *****
 ; ***************************************************
 itoa:      push    rf           ; save consumed registers
            push    r9
@@ -2293,8 +2283,10 @@ itoalp1:   lda     rd
            phi     r8
            ldn     r2           ; recover character
 itoa2:     adi     030h
-           sep     scall        ; display it
-           dw      o_type
+           str     rb
+           inc     rb
+;           sep     scall        ; display it
+;           dw      o_type
 itoa3:     dec     r8
            glo     r8
            lbnz    itoalp1
@@ -2308,6 +2300,8 @@ itoa3:     dec     r8
            pop     r8           ; recover consumed registers
            pop     r9
            pop     rf
+           ldi     0            ; terminate string
+           str     rb
            sep     sret         ; return to caller
 itoaz:     ghi     r8           ; see if leading have been used up
            lbz     itoa2        ; jump if so
@@ -2315,8 +2309,10 @@ itoaz:     ghi     r8           ; see if leading have been used up
            phi     r8
            lbr     itoa3        ; and loop for next character
 itoan:     ldi     '-'          ; show negative
-           sep     scall        ; display it
-           dw      o_type
+           str     rb
+           inc     rb
+;           sep     scall        ; display it
+;           dw      o_type
            glo     rf           ; 2s compliment
            xri     0ffh
            adi     1
@@ -2404,7 +2400,9 @@ strstr_no: ldi     0                   ; signal not found
 ; ***** Move R8 past any spaces *****
 ; ***********************************
 trim:      lda     r8                  ; get byte from R8
-           smi     ' '                 ; check for space
+           smi     9                   ; check for tab
+           lbz     trim                ; skip tabs
+           smi     23                  ; check for space
            lbz     trim                ; keep moving past spaces
            dec     r8                  ; move back to non-space
            sep     sret                ; and return to caller
