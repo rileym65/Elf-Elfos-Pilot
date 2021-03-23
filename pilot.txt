@@ -41,6 +41,7 @@ string expressions:
          m($var,pos,len)     - Middle portion of string
          r($var,len)         - Right portion of string
          s(expr)             - expr as ASCII
+         o($var)             - Convert to lowercase
          u($var)             - Convert to uppercase
 
 Notes:
