@@ -264,6 +264,11 @@ nolabel:   lda     r8                  ; get command byte
            smi     '('
            lbnz    c_nocond            ; jump if not
            inc     r8                  ; move past open parens
+           sep     scall               ; move past any spaces
+           dw      trim
+           ldn     r8                  ; get next byte
+           smi     '$'                 ; check for string comparison
+           lbz     exp_str             ; jump if string expression
            glo     rb                  ; save command
            stxd
            sep     scall               ; evaluate expression
@@ -277,6 +282,95 @@ nolabel:   lda     r8                  ; get command byte
            lbz     lineend             ; zero, so do not execute
 expgood:   inc     r8                  ; move past close parens
            lbr     c_nocond            ; continue to execute command
+exp_str:   inc     r8                  ; move past dollar sign
+           sep     scall               ; get string variable data
+           dw      getsvar
+           sep     scall               ; move past any spaces
+           dw      trim
+           ldi     0                   ; clear flags
+           plo     rc
+exp_str1:  lda     r8                  ; get next character
+           lbz     synerr              ; jump if end of line encountered
+           smi     '<                  ; check for less than
+           lbnz    exp_str1a           ; jump if not
+           glo     rc                  ; get flags
+           ori     2                   ; set less than flag
+           plo     rc
+           lbr     exp_str1            ; check for more symbols
+exp_str1a: smi     1                   ; check for = sign
+           lbnz    exp_str1b           ; jump if not
+           glo     rc                  ; get flags
+           ori     1                   ; set equals flag
+           plo     rc
+           lbr     exp_str1            ; check for more symbols
+exp_str1b: smi     1                   ; check for > sign
+           lbnz    exp_str1c           ; jump if not
+           glo     rc                  ; get flags
+           ori     4                   ; set greater than flag
+           plo     rc
+           lbr     exp_str1            ; check for more
+exp_str1c: dec     r8                  ; move back to non-comparison character
+           glo     rc                  ; save flags on stack
+           stxd
+           sep     scall               ; move past any spaces
+           dw      trim
+           lda     r8                  ; get next byte, must be " or $
+           smi     34                  ; first check quote
+           lbz     exp_qt              ; jump if quoted string
+           smi     2                   ; check for $ sign
+           lbnz    synerr              ; error if not " or $
+           push    rf                  ; save first string address
+           sep     scall               ; get address of second string
+           dw      getsvar
+           mov     rd,rf               ; move address to rd
+           pop     rf                  ; recover first string
+exp_str2:  irx                         ; recover rc
+           ldn     r2
+           plo     rc
+           sep     scall               ; move past any spaces
+           dw      trim
+           lda     r8                  ; check for closing )
+           smi     ')
+           lbnz    synerr              ; error if not found
+           sep     scall               ; compare strings
+           dw      strcmp2
+           plo     re                  ; copy a copy of result
+           lbnf    exp_eq              ; jump if the strings were not equal
+           glo     rc                  ; get comparison flags
+           shr                         ; shift equal test bit into df
+           lbdf    c_nocond            ; if equal test is present, test passes
+           lbr     lineend             ; otherwise not
+exp_eq:    glo     rc                  ; look for unequal test
+           ani     06h
+           smi     06h
+           lbz     c_nocond            ; if unequal was the test, test passes
+           glo     rc                  ; recover test bits
+           ani     2                   ; keep only less than flag
+           lbz     exp_lt              ; jump if less than is not being tested
+           glo     re                  ; recover test result
+           smi     0ffh                ; see if result was -1
+           lbz     c_nocond            ; test pases
+           lbr     lineend             ; otherwise next line
+exp_lt:    glo     rc                  ; check for greater than test
+           ani     04h
+           lbz     lineend             ; test fails if not
+           glo     re                  ; recover test result
+           smi     1                   ; check for +1
+           lbz     c_nocond            ; jump if test passes
+           lbr     lineend             ; otherwise end
+exp_qt:    mov     rd,dta              ; point to dta
+exp_qt1:   lda     r8                  ; get byte from program
+           lbz     synerr              ; error if end of line reached before a "
+           str     rd                  ; write into temp spaced
+           inc     rd
+           smi     34                  ; check for ending quote
+           lbnz    exp_qt1             ; lo
+           dec     rd                  ; move back to quote
+           ldi     0                   ; and terminate string
+           str     rd
+           mov     rd,dta              ; point back to beginning of string
+           lbr     exp_str2            ; now do comparison
+
 
 c_nomatch: inc     r8                  ; move past condition byte
            ldi     low matched         ; get matched flag
@@ -2426,11 +2520,11 @@ strlen_1:  lda     rf           ; get next byte
 strlen_2:  pop     rf           ; recover string address
            sep     sret         ; and return to caller
 
-; ***********************************
-; ***** Copy string             *****
-; ***** RF - Source string      *****
-; ***** RD - Destination string *****
-; ***********************************
+; **************************************************
+; ***** Copy string                            *****
+; ***** RF - First string                      *****
+; ***** RD - Second string                     *****
+; **************************************************
 strcpy:    push    rd           ; save addresses
            push    rf
 strcpy_1:  lda     rf           ; read source byte
@@ -2440,6 +2534,45 @@ strcpy_1:  lda     rf           ; read source byte
            pop     rf           ; recover addresses
            pop     rd
            sep     sret         ; and return to caller
+
+
+; **************************************************
+; ***** Compare strings                        *****
+; ***** RF - First string                      *****
+; ***** RD - Second string                     *****
+; ***** Returns: DF=1 - Strins equal           *****
+; *****           D=0 - Strings equal          *****
+; *****           D=1 - First string greater   *****
+; *****           D=FF - Second strint greater *****
+; **************************************************
+strcmp2:   push    rd           ; save addresses
+           push    rf
+strcmp_1:  lda     rf           ; get byte from source string
+           lbz     strcmp_e     ; jump if end of string
+           str     r2           ; store for comprare
+           lda     rd           ; get byte from string 2
+           lbz     strcmp_s1    ; jump if string2 ended
+           sm                   ; otherwise compare bytes
+           lbz     strcmp_1     ; check more characters if same
+           lbdf    strcmp_s2    ; jump if first string was less
+strcmp_s1: ldi     0            ; mark strings unequal
+           shr
+           ldi     1            ; signal string 1 is greater
+           lbr     strcmp_ex    ; and return
+strcmp_e:  lda     rd           ; get byte from second string
+           lbz     strcmp_eq    ; jump if strings are equal
+strcmp_s2: ldi     0            ; mark strings as unequal
+           shr
+           ldi     0ffh         ; string 2 is greater
+strcmp_ex: plo     re           ; save copy of return value
+           pop     rf           ; recover addresses
+           pop     rd
+           glo     re           ; recover result
+           sep     sret         ; and return to caller
+strcmp_eq: ldi     1            ; mark strings as equal
+           shr
+           ldi     0            ; D shows equal strings
+           lbr     strcmp_ex    ; and return
 
 ; **************************************
 ; ***** Convert RF to bcd in M[RD] *****

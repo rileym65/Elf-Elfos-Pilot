@@ -28,12 +28,14 @@ Y:text                       - Equivalent to TY
 Command format:
 
 [*label] command{cond}:operands
-cond = Y | N | (expression)
+cond = Y | N | (expression) | (scomp)
+
+scomp = $var [ < | > | <= | >= | <> | = ] [ $var | "text" ]
 
 expressions allow: +, -, *, /, &, |, ^, <, <=, >, >=, =, <>, (, )
 
 string expressions:
-  term + term { + term }{...}
+  term { + term }{ + term }{...}
   term = "text"
          $var
          #var                - Implicit s(#var)
