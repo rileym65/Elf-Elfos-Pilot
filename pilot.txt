@@ -40,6 +40,7 @@ string expressions:
          l($var,len)         - Left portion of string
          m($var,pos,len)     - Middle portion of string
          r($var,len)         - Right portion of string
+         s(expr)             - expr as ASCII
 
 Notes:
   On T command, if line ends with \ then no CR will be output

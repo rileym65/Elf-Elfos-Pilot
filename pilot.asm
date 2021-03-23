@@ -1711,6 +1711,9 @@ seval_lp:  sep     scall               ; move past any spaces
            glo     re                  ; check for C()
            smi     'c'
            lbz     seval_c             ; jump if so
+           glo     re                  ; check for S()
+           smi     's'
+           lbz     seval_s             ; jump if so
            lbr     synerr              ; otherwise syntax error
 seval_qt:  lda     r8                  ; get next byte
            lbz     synerr              ; syntax error if end of line
@@ -1867,6 +1870,24 @@ seval_c:   lda     r8                  ; get next byte
            glo     rf                  ; get byte
            str     rd                  ; and write to output
            inc     rd
+           lbr     seval_nx            ; process next token
+seval_s:   lda     r8                  ; get next byte
+           smi     '('                 ; must be open parens
+           lbnz    synerr              ; otherwise syntax error
+           sep     scall               ; move past any spaces
+           dw      trim
+           sep     scall               ; evaluate expression
+           dw      evaluate
+           sep     scall               ; move past any spaces
+           dw      trim
+           lda     r8                  ; next symbol must be )
+           smi     ')'
+           lbnz    synerr              ; otherwise syntax error
+           glo     rf                  ; get byte
+           mov     rb,rd               ; set buffer for atoi
+           sep     scall               ; perform atoi
+           dw      itoa
+           mov     rd,rb               ; set output pointer after number
            lbr     seval_nx            ; process next token
 
 ; *********************************************************************
