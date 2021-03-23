@@ -1699,8 +1699,12 @@ seval_lp:  sep     scall               ; move past any spaces
            lbz     seval_st            ; jump if so
            glo     re                  ; check for L()
            ori     020h                ; make lowercase
+           plo     re                  ; save this
            smi     'l'
            lbz     seval_lf            ; jump if so
+           glo     re                  ; check for M()
+           smi     'm'
+           lbz     seval_m             ; jump if so
            lbr     synerr              ; otherwise syntax error
 seval_qt:  lda     r8                  ; get next byte
            lbz     synerr              ; syntax error if end of line
@@ -1739,7 +1743,7 @@ seval_lf:  lda     r8                  ; get next byte
            lbnz    synerr              ; jump if not
            sep     scall               ; get string variable address
            dw      getsvar
-           sep     scall               ; move past any spaces
+seval_lm:  sep     scall               ; move past any spaces
            dw      trim
            lda     r8                  ; next symbol must be comma
            smi     ','
@@ -1763,6 +1767,36 @@ seval_lf2: lda     rc                  ; get byte from string
            inc     rd
            dec     rf                  ; decrement count
            lbr     seval_lf1           ; loop until done
+seval_m:   lda     r8                  ; get next byte
+           smi     '('                 ; must be open parens
+           lbnz    synerr              ; otherwise syntax error
+           sep     scall               ; move past any spaces
+           dw      trim
+           lda     r8                  ; check for string variable
+           smi     '$'
+           lbnz    synerr              ; jump if not
+           sep     scall               ; get string variable address
+           dw      getsvar
+           sep     scall               ; move past any spaces
+           dw      trim
+           lda     r8                  ; next character must be ,
+           smi     ','
+           lbnz    synerr              ; else syntax error
+           push    rf                  ; save string address
+           sep     scall               ; evaluate expression
+           dw      evaluate
+           pop     rc                  ; retrieve string address
+seval_m1:  glo     rf                  ; see if done
+           lbnz    seval_m2            ; jump if not
+           ghi     rf
+           lbnz    seval_m2
+seval_m3:  mov     rf,rc               ; move string address back to RF
+           lbr     seval_lm            ; now use left code to copy
+seval_m2:  ldn     rc                  ; get byte from string
+           lbz     seval_m3            ; jump if at terminator
+           inc     rc                  ; otherwise increment
+           dec     rf                  ; decrement count
+           lbr     seval_m1            ; loop until start position found
 
 ; *********************************************************************
 ; *****            End of String Expression Evaluator             *****
