@@ -1697,6 +1697,10 @@ seval_lp:  sep     scall               ; move past any spaces
            glo     re                  ; recover character
            smi     '$'                 ; check for string variable
            lbz     seval_st            ; jump if so
+           glo     re                  ; check for L()
+           ori     020h                ; make lowercase
+           smi     'l'
+           lbz     seval_lf            ; jump if so
            lbr     synerr              ; otherwise syntax error
 seval_qt:  lda     r8                  ; get next byte
            lbz     synerr              ; syntax error if end of line
@@ -1725,6 +1729,40 @@ seval_dn:  ldi     0                   ; terminate constructed string
            str     rd
            mov     rf,dta              ; point back to beginning of string
            sep     sret                ; and return to caller
+seval_lf:  lda     r8                  ; get next byte
+           smi     '('                 ; must be open parens
+           lbnz    synerr              ; otherwise syntax error
+           sep     scall               ; move past any spaces
+           dw      trim
+           lda     r8                  ; check for string variable
+           smi     '$'
+           lbnz    synerr              ; jump if not
+           sep     scall               ; get string variable address
+           dw      getsvar
+           sep     scall               ; move past any spaces
+           dw      trim
+           lda     r8                  ; next symbol must be comma
+           smi     ','
+           lbnz    synerr              ; else syntax error
+           push    rf                  ; save string address
+           sep     scall               ; evaluate expression
+           dw      evaluate
+           pop     rc                  ; retrieve string address
+           sep     scall               ; move past any spaces
+           dw      trim
+           lda     r8                  ; next symbol must be )
+           smi     ')'
+           lbnz    synerr              ; otherwise syntax error
+seval_lf1: glo     rf                  ; check size
+           lbnz    seval_lf2           ; jump if more to copy
+           ghi     rf
+           lbz     seval_lp            ; done, on to next
+seval_lf2: lda     rc                  ; get byte from string
+           lbz     seval_lp            ; done if terminator found
+           str     rd                  ; store into destination
+           inc     rd
+           dec     rf                  ; decrement count
+           lbr     seval_lf1           ; loop until done
 
 ; *********************************************************************
 ; *****            End of String Expression Evaluator             *****

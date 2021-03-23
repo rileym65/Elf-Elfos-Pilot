@@ -32,6 +32,12 @@ cond = Y | N | (expression)
 
 expressions allow: +, -, *, /, &, |, ^, <, <=, >, >=, =, <>, (, )
 
+string expressions:
+  term + term { + term }{...}
+  term = "text" |
+         $var |
+         l($var,len)         - Left portion of string
+
 Notes:
   On T command, if line ends with \ then no CR will be output
    \e
