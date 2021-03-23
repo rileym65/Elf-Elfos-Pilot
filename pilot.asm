@@ -1697,6 +1697,9 @@ seval_lp:  sep     scall               ; move past any spaces
            glo     re                  ; recover character
            smi     '$'                 ; check for string variable
            lbz     seval_st            ; jump if so
+           glo     re                  ; recover character
+           smi     '#'                 ; check for integer variable
+           lbz     seval_iv            ; jump if so
            glo     re                  ; check for L()
            ori     020h                ; make lowercase
            plo     re                  ; save this
@@ -1943,6 +1946,13 @@ seval_o1:  lda     rf                  ; read byte from string
 seval_o2:  str     rd                  ; write to destination
            inc     rd
            lbr     seval_o1            ; process until done
+seval_iv:  sep     scall               ; retrieve variable value
+           dw      getivar
+           mov     rb,rd               ; set buffer for atoi
+           sep     scall               ; perform atoi
+           dw      itoa
+           mov     rd,rb               ; set output pointer after number
+           lbr     seval_nx            ; process next token
 
 ; *********************************************************************
 ; *****            End of String Expression Evaluator             *****

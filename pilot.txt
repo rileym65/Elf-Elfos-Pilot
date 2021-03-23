@@ -34,8 +34,9 @@ expressions allow: +, -, *, /, &, |, ^, <, <=, >, >=, =, <>, (, )
 
 string expressions:
   term + term { + term }{...}
-  term = "text" |
-         $var |
+  term = "text"
+         $var
+         #var                - Implicit s(#var)
          c(expr)             - Character corresponding to expr
          l($var,len)         - Left portion of string
          m($var,pos,len)     - Middle portion of string
