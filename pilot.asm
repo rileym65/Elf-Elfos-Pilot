@@ -1714,6 +1714,9 @@ seval_lp:  sep     scall               ; move past any spaces
            glo     re                  ; check for S()
            smi     's'
            lbz     seval_s             ; jump if so
+           glo     re                  ; check for U()
+           smi     'u'
+           lbz     seval_u             ; jump if so
            lbr     synerr              ; otherwise syntax error
 seval_qt:  lda     r8                  ; get next byte
            lbz     synerr              ; syntax error if end of line
@@ -1889,6 +1892,30 @@ seval_s:   lda     r8                  ; get next byte
            dw      itoa
            mov     rd,rb               ; set output pointer after number
            lbr     seval_nx            ; process next token
+seval_u:   lda     r8                  ; get next byte
+           smi     '('                 ; must be open parens
+           lbnz    synerr              ; otherwise syntax error
+           sep     scall               ; move past any spaces
+           dw      trim
+           lda     r8                  ; check for string variable
+           smi     '$'
+           lbnz    synerr              ; jump if not
+           sep     scall               ; get string variable address
+           dw      getsvar
+           sep     scall               ; move past any spaces
+           dw      trim
+           lda     r8                  ; next symbol must be )
+           smi     ')'
+           lbnz    synerr              ; otherwise syntax error
+seval_u1:  lda     rf                  ; read byte from string
+           lbz     seval_nx            ; done if terminator encountered
+           sep     scall               ; is it lowercase
+           dw      is_lc
+           lbnf    seval_u2            ; jump if not
+           smi     32                  ; convert to uppercase
+seval_u2:  str     rd                  ; write to destination
+           inc     rd
+           lbr     seval_u1            ; process until done
 
 ; *********************************************************************
 ; *****            End of String Expression Evaluator             *****

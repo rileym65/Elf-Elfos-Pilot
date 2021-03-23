@@ -41,6 +41,7 @@ string expressions:
          m($var,pos,len)     - Middle portion of string
          r($var,len)         - Right portion of string
          s(expr)             - expr as ASCII
+         u($var)             - Convert to uppercase
 
 Notes:
   On T command, if line ends with \ then no CR will be output
