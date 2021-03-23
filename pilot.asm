@@ -1708,6 +1708,9 @@ seval_lp:  sep     scall               ; move past any spaces
            glo     re                  ; check for R()
            smi     'r'
            lbz     seval_r             ; jump if so
+           glo     re                  ; check for C()
+           smi     'c'
+           lbz     seval_c             ; jump if so
            lbr     synerr              ; otherwise syntax error
 seval_qt:  lda     r8                  ; get next byte
            lbz     synerr              ; syntax error if end of line
@@ -1763,9 +1766,9 @@ seval_lm:  sep     scall               ; move past any spaces
 seval_lf1: glo     rf                  ; check size
            lbnz    seval_lf2           ; jump if more to copy
            ghi     rf
-           lbz     seval_lp            ; done, on to next
+           lbz     seval_nx            ; done, on to next
 seval_lf2: lda     rc                  ; get byte from string
-           lbz     seval_lp            ; done if terminator found
+           lbz     seval_nx            ; done if terminator found
            str     rd                  ; store into destination
            inc     rd
            dec     rf                  ; decrement count
@@ -1849,6 +1852,22 @@ seval_r2:  glo     rb                  ; check rb=0
            lbr     seval_r2            ; loop until end found
 seval_r3:  pop     rf                  ; start found, recover count
            lbr     seval_lf1           ; now use left to copy string
+seval_c:   lda     r8                  ; get next byte
+           smi     '('                 ; must be open parens
+           lbnz    synerr              ; otherwise syntax error
+           sep     scall               ; move past any spaces
+           dw      trim
+           sep     scall               ; evaluate expression
+           dw      evaluate
+           sep     scall               ; move past any spaces
+           dw      trim
+           lda     r8                  ; next symbol must be )
+           smi     ')'
+           lbnz    synerr              ; otherwise syntax error
+           glo     rf                  ; get byte
+           str     rd                  ; and write to output
+           inc     rd
+           lbr     seval_nx            ; process next token
 
 ; *********************************************************************
 ; *****            End of String Expression Evaluator             *****
