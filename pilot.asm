@@ -1705,6 +1705,9 @@ seval_lp:  sep     scall               ; move past any spaces
            glo     re                  ; check for M()
            smi     'm'
            lbz     seval_m             ; jump if so
+           glo     re                  ; check for R()
+           smi     'r'
+           lbz     seval_r             ; jump if so
            lbr     synerr              ; otherwise syntax error
 seval_qt:  lda     r8                  ; get next byte
            lbz     synerr              ; syntax error if end of line
@@ -1797,6 +1800,55 @@ seval_m2:  ldn     rc                  ; get byte from string
            inc     rc                  ; otherwise increment
            dec     rf                  ; decrement count
            lbr     seval_m1            ; loop until start position found
+seval_r:   lda     r8                  ; get next byte
+           smi     '('                 ; must be open parens
+           lbnz    synerr              ; otherwise syntax error
+           sep     scall               ; move past any spaces
+           dw      trim
+           lda     r8                  ; check for string variable
+           smi     '$'
+           lbnz    synerr              ; jump if not
+           sep     scall               ; get string variable address
+           dw      getsvar
+           sep     scall               ; move past any spaces
+           dw      trim
+           lda     r8                  ; next symbol must be comma
+           smi     ','
+           lbnz    synerr              ; else syntax error
+           push    rf                  ; save string address
+           sep     scall               ; evaluate expression
+           dw      evaluate
+           pop     rc                  ; retrieve string address
+           sep     scall               ; move past any spaces
+           dw      trim
+           lda     r8                  ; next symbol must be )
+           smi     ')'
+           lbnz    synerr              ; otherwise syntax error
+           push    rf                  ; save count
+           ldi     0                   ; zero count
+           plo     rb
+           phi     rb
+seval_r1:  ldn     rc                  ; get byte from string
+           lbz     seval_r2            ; jump if end found
+           inc     rc                  ; move to next character
+           inc     rb                  ; increment count
+           lbr     seval_r1            ; loop until end found
+seval_r2:  glo     rb                  ; check rb=0
+           str     r2
+           ghi     rb
+           or
+           lbz     seval_r3            ; jump if zero
+           glo     rf                  ; check rf=0
+           str     r2
+           ghi     rf
+           or
+           lbz     seval_r3            ; jump if zero 
+           dec     rc                  ; decrement string position
+           dec     rb                  ; decrement counts
+           dec     rf
+           lbr     seval_r2            ; loop until end found
+seval_r3:  pop     rf                  ; start found, recover count
+           lbr     seval_lf1           ; now use left to copy string
 
 ; *********************************************************************
 ; *****            End of String Expression Evaluator             *****

@@ -38,6 +38,7 @@ string expressions:
          $var |
          l($var,len)         - Left portion of string
          m($var,pos,len)     - Middle portion of string
+         r($var,len)         - Right portion of string
 
 Notes:
   On T command, if line ends with \ then no CR will be output
