@@ -47,6 +47,7 @@ string expressions:
          o($var)             - Convert to lowercase
          u($var)             - Convert to uppercase
          t($var)             - Trim leading spaces
+         w($var)             - Get first word, ignores leading whitespace
 
 Notes:
   On T command, if line ends with \ then no CR will be output
