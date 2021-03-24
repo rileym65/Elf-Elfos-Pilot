@@ -46,6 +46,7 @@ string expressions:
          s(expr)             - expr as ASCII
          o($var)             - Convert to lowercase
          u($var)             - Convert to uppercase
+         t($var)             - Trim leading spaces
 
 Notes:
   On T command, if line ends with \ then no CR will be output

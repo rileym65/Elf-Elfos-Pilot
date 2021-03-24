@@ -1817,6 +1817,9 @@ seval_lp:  sep     scall               ; move past any spaces
            glo     re                  ; check for O()
            smi     'o'
            lbz     seval_o             ; jump if so
+           glo     re                  ; check for T()
+           smi     't'
+           lbz     seval_t             ; jump if so
            lbr     synerr              ; otherwise syntax error
 seval_qt:  lda     r8                  ; get next byte
            lbz     synerr              ; syntax error if end of line
@@ -2047,6 +2050,37 @@ seval_iv:  sep     scall               ; retrieve variable value
            dw      itoa
            mov     rd,rb               ; set output pointer after number
            lbr     seval_nx            ; process next token
+seval_t:   lda     r8                  ; get next byte
+           smi     '('                 ; must be open parens
+           lbnz    synerr              ; otherwise syntax error
+           sep     scall               ; move past any spaces
+           dw      trim
+           lda     r8                  ; check for string variable
+           smi     '$'
+           lbnz    synerr              ; jump if not
+           sep     scall               ; get string variable address
+           dw      getsvar
+           sep     scall               ; move past any spaces
+           dw      trim
+           lda     r8                  ; next symbol must be )
+           smi     ')'
+           lbnz    synerr              ; otherwise syntax error
+           sep     scall               ; move past whitespace
+           dw      seval_trm
+seval_t3:  lda     rf                  ; get next byte
+           lbz     seval_nx            ; jump if done
+           str     rd                  ; write to destination
+           inc     rd
+           lbr     seval_t3            ; process until done
+
+seval_trm: lda     rf                  ; read byte from string
+           lbz     seval_trt           ; done
+           smi     9                   ; check for tab
+           lbz     seval_trm           ; jump if tab
+           smi     23                  ; check for space
+           lbz     seval_trm           ; jump if space
+seval_trt: dec     rf                  ; move back to non-whitespace
+           sep     sret                ; and return
 
 ; *********************************************************************
 ; *****            End of String Expression Evaluator             *****
