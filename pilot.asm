@@ -1823,6 +1823,9 @@ seval_lp:  sep     scall               ; move past any spaces
            glo     re                  ; check for W()
            smi     'w'
            lbz     seval_w             ; jump if so
+           glo     re                  ; check for N()
+           smi     'n'
+           lbz     seval_n             ; jump if so
            lbr     synerr              ; otherwise syntax error
 seval_qt:  lda     r8                  ; get next byte
            lbz     synerr              ; syntax error if end of line
@@ -2103,6 +2106,34 @@ seval_w3:  lda     rf                  ; get next byte
            str     rd                  ; write to destination
            inc     rd
            lbr     seval_w3            ; process until done
+seval_n:   lda     r8                  ; get next byte
+           smi     '('                 ; must be open parens
+           lbnz    synerr              ; otherwise syntax error
+           sep     scall               ; move past any spaces
+           dw      trim
+           lda     r8                  ; check for string variable
+           smi     '$'
+           lbnz    synerr              ; jump if not
+           sep     scall               ; get string variable address
+           dw      getsvar
+           sep     scall               ; move past any spaces
+           dw      trim
+           lda     r8                  ; next symbol must be )
+           smi     ')'
+           lbnz    synerr              ; otherwise syntax error
+           sep     scall               ; move past whitespace
+           dw      seval_trm
+seval_n3:  lda     rf                  ; get next byte
+           lbz     seval_nx            ; jump if done
+           plo     re                  ; save character
+           smi     9                   ; check for tab
+           lbz     seval_n4            ; jump if so
+           smi     23                  ; check for space
+           lbz     seval_n4            ; jump if so
+           lbr     seval_n3            ; process until done
+seval_n4:  sep     scall               ; move past whitespace
+           dw      seval_trm
+           lbr     seval_t3            ; copy rest of string
 
 seval_trm: lda     rf                  ; read byte from string
            lbz     seval_trt           ; done

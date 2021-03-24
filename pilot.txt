@@ -48,6 +48,7 @@ string expressions:
          u($var)             - Convert to uppercase
          t($var)             - Trim leading spaces
          w($var)             - Get first word, ignores leading whitespace
+         n($var)             - Get string starting from 2nd word
 
 Notes:
   On T command, if line ends with \ then no CR will be output
