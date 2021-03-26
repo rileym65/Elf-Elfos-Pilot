@@ -14,6 +14,9 @@ doc: pilot.d
 hex: $(PROJECT).prg
 	cat $(PROJECT).prg | ../tointel.pl > $(PROJECT).hex
 
+bin: $(PROJECT).prg
+	../tobinary $(PROJECT).prg
+
 install: $(PROJECT).prg
 	cp $(PROJECT).prg ../..
 	cd ../.. ; ./run -R $(PROJECT).prg
