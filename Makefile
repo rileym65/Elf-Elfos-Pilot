@@ -8,6 +8,16 @@ $(PROJECT).prg: $(PROJECT).asm bios.inc
 	rm $(PROJECT).prg
 	mv x.prg $(PROJECT).prg
 
+doc: pilot.d
+	makedoc pilot.d
+
+hex: $(PROJECT).prg
+	cat $(PROJECT).prg | ../tointel.pl > $(PROJECT).hex
+
+install: $(PROJECT).prg
+	cp $(PROJECT).prg ../..
+	cd ../.. ; ./run -R $(PROJECT).prg
+
 clean:
 	-rm $(PROJECT).prg
 
