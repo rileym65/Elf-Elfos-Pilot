@@ -1188,6 +1188,7 @@ progend:   lbr     o_wrmboot           ; return to Elf/OS
 ; *********************************************************************
 ; *****                   Expression Evaluator                    *****
 ; *********************************************************************
+
 ; **********************************
 ; ***** Uses: RB - token stack *****
 ; *****       RC - arg 1       *****
@@ -1382,29 +1383,108 @@ divno:     ghi     rd                  ; get hi of divisor
            plo     r8
            lbr     divst               ; next iteration
 
+; *****************************************************
+; ***** Perform calculation on top of token stack *****
+; *****************************************************
 reduce:    ldi     low numtokens       ; need number of tokens
            plo     r9
            ldn     r9
-           smi     3                   ; see if less than 3
-           lbdf    reduce1             ; jump if not
-           sep     sret                ; otherwise return to caller
+           lbz     return_0            ; return if nothing on stack
+           smi     1                   ; check for 1 token
+           lbz     return_0            ; also nothing to do if only 1 token
 
-reduce1:   dec     rb                  ; retrieve argument 2
-           ldn     rb                  ; retrieve lsb
+           dec     rb                  ; retrieve argument 2
+           ldn     rb
            plo     rd
-           dec     rb                  ; retrieve msb
+           dec     rb
            ldn     rb
            phi     rd
            dec     rb                  ; get type
            ldn     rb
-     
+
            dec     rb                  ; get operation
            dec     rb
            dec     rb
            ldn     rb
            plo     rf
 
-           dec     rb                  ; retrieve argument 1
+; ----- OP_FPEEK RC = peek(RD)
+           smi     OP_FPEEK            ; check for peek
+           lbnz    reduce_1a           ; jump if not
+           ldn     rd                  ; 
+           plo     rc
+           ldi     0
+           phi     rc
+           lbr     r_done1
+
+; ----- OP_FEF RC = ef(RD)
+reduce_1a: glo     rf                  ; recover command
+           smi     OP_FEF              ; check for ef
+           lbnz    reduce_1b           ; jump if not
+           sep     scall               ; get EF pins
+           dw      readef
+           plo     rc
+           ldi     0
+           phi     rc
+           lbr     r_done1
+
+; ----- OP_FINP RC = inp(RD)
+reduce_1b: glo     rf                  ; recover command
+           smi     OP_FINP             ; check for input
+           lbnz    reduce_1c           ; jump if not
+           mov     rc,red_inp          ; point to command
+           glo     rd                  ; extract port
+           ani     7
+           ori     068h                ; convert to input command
+           str     rc                  ; write it
+red_inp:   db      0                   ; input command written here
+           plo     rc
+           ldi     0
+           phi     rc
+           lbr     r_done1
+
+; ----- OP_FEF RC = rnd(RD)
+reduce_1c: glo     rf                  ; recover command
+           smi     OP_FRND             ; check for rnd
+           lbnz    reduce_1d           ; jump if not
+           sep     scall               ; get random number
+           dw      fn_lfsr
+           lbr     r_done1
+
+reduce_1d:
+
+           ldn     r9                  ; get number of tokens
+           smi     3                   ; see if less than 3
+           lbdf    reduce2             ; jump if not
+           inc     rb                  ; put rb back
+           inc     rb
+           inc     rb
+           inc     rb
+           inc     rb
+           inc     rb
+return_0:  ldi     0                   ; indicate nothing done
+           shr
+           sep     sret                ; otherwise return to caller
+return_1:  ldi     1                   ; indicate something done
+           shr 
+           sep     sret
+
+;reduce2:   dec     rb                  ; retrieve argument 2
+;           ldn     rb                  ; retrieve lsb
+;           plo     rd
+;           dec     rb                  ; retrieve msb
+;           ldn     rb
+;           phi     rd
+;           dec     rb                  ; get type
+;           ldn     rb
+;     
+;           dec     rb                  ; get operation
+;           dec     rb
+;           dec     rb
+;           ldn     rb
+;           plo     rf
+
+reduce2:   dec     rb                  ; retrieve argument 1
            ldn     rb                  ; retrieve lsb
            plo     rc
            dec     rb                  ; retrieve msb
@@ -1590,13 +1670,28 @@ r_done:    ldi     OP_NUM              ; push result back on stack
            ldn     r9
            smi     2
            str     r9
-           sep     sret                ; return to caller
+           lbr     return_1
+r_done1:   ldi     OP_NUM              ; push result back on stack
+           str     rb
+           inc     rb
+           ghi     rc
+           str     rb
+           inc     rb
+           glo     rc
+           str     rb
+           inc     rb
+           ldi     low numtokens       ; numtokens -= 1
+           plo     r9
+           ldn     r9
+           smi     1
+           str     r9
+           lbr     return_1
 
 addop:     plo     re                  ; store op
 addoplp:   ldi     low numtokens       ; need to get number of tokens
            plo     r9
            ldn     r9                  ; retrieve number of tokens
-           smi     3                   ; see if greater than 2
+           smi     2                   ; see if greater than 1
            lbnf    addop_go            ; jump if not
            dec     rb                  ; need type of symbol 2 back
            dec     rb
@@ -1779,14 +1874,17 @@ eval_5:    ldn     r8                  ; get character
            inc     r8                  ; move past space
            lbr     eval_lp             ; loop back for more tokens
 
-eval_dn:   ldi     low numtokens       ; point to tokens
-           plo     r9
-           ldn     r9                  ; get number of tokens
-           smi     3                   ; see if less than 3
-           lbnf    eval_ex             ; jump if done
-           sep     scall               ; otherwise call reduce
+;eval_dn:   ldi     low numtokens       ; point to tokens
+;           plo     r9
+;           ldn     r9                  ; get number of tokens
+;           smi     3                   ; see if less than 3
+;           lbnf    eval_ex             ; jump if done
+;           sep     scall               ; otherwise call reduce
+;           dw      reduce
+;           lbr     eval_dn             ; loop for more possible reductions
+eval_dn:   sep     scall               ; call reduce
            dw      reduce
-           lbr     eval_dn             ; loop for more possible reductions
+           lbdf    eval_dn             ; jump if reduction was dones
 eval_ex:   mov     rc,tokens+1         ; point to final value
            lda     rc                  ; and set rf
            phi     rf
@@ -1810,7 +1908,93 @@ ops:       db      ('+'+080h),OP_ADD
            db      ('<'+080h),OP_LT
            db      ('>'+080h),OP_GT
            db      ('='+080h),OP_EQ
+           db      'pee',('k'+080h),OP_FPEEK
+           db      'in',('p'+080h),OP_FINP
+           db      'rn',('d'+080h),OP_FRND
+           db      'e',('f'+080h),OP_FEF
+           db      'le',('n'+080h),OP_FLEN
            db      0
+
+; *********************************************
+; ***** Get 16-bit unsigned random number *****
+; ***** RC - random number                *****
+; *********************************************
+fn_lfsr:   ldi     16                  ; need to perform 16 shifts
+           plo     rc
+           push    r7                  ; save r7
+lfsr_lp:   ldi     high lfsr           ; point to lfsr
+           phi     r7
+           ldi     low lfsr
+           plo     r7
+           inc     r7                  ; point to lsb
+           inc     r7
+           inc     r7
+           ldn     r7                  ; retrieve it
+           plo     re                  ; put into re  ( have bit 0)
+           shr                         ; shift bit 1 into first position
+           str     r2                  ; xor with previous value
+           glo     re
+           xor
+           plo     re                  ; keep copy
+           ldn     r2                  ; get value
+           shr                         ; shift bit 2 into first position
+           str     r2                  ; and combine
+           glo     re
+           xor
+           plo     re
+           ldn     r2                  ; now shift to bit 4
+           shr
+           shr
+           str     r2                  ; and combine
+           glo     re
+           xor
+           plo     re
+           ldn     r2                  ; now shift to bit 6
+           shr
+           shr
+           str     r2                  ; and combine
+           glo     re
+           xor
+           plo     re
+           dec     r7                  ; point to lfsr msb
+           dec     r7
+           dec     r7
+           ldn     r7                  ; retrieve it
+           shl                         ; shift high bit to low
+           shlc
+           str     r2                  ; combine with previous value
+           glo     re
+           xor
+           xri     1                   ; combine with a final 1
+           shr                         ; shift new bit into DF
+           ldn     r7                  ; now shift the register
+           shrc
+           str     r7
+           inc     r7                  ; now byte 1
+           ldn     r7                  ; now shift the register
+           shrc
+           str     r7
+           inc     r7                  ; now byte 2
+           ldn     r7                  ; now shift the register
+           shrc
+           str     r7
+           inc     r7                  ; now byte 3
+           ldn     r7                  ; now shift the register
+           shrc
+           str     r7
+           dec     rc                  ; decrement count
+           glo     rc                  ; see if done
+           lbnz    lfsr_lp             ; jump if not
+           ldi     high lfsr           ; point to lfsr
+           phi     r7
+           ldi     low lfsr
+           plo     r7
+           lda     r7                  ; retrieve 16 bits from register
+           plo     rc
+           ldn     r7
+           phi     rc
+           pop     r7                  ; recover r7
+           sep     sret                ; and return
 
 ; *********************************************************************
 ; *****              End of  Expression Evaluator                 *****
@@ -3258,7 +3442,8 @@ buffer:    ds      128
 cbuffer:   ds      80
 dta:       ds      512
 pcstack:   ds      256
-accept:    dw      256
+accept:    ds      256
+lfsr:      ds      4
 tokens:    ds      60*3
            ds      64
 stack:     ds      1

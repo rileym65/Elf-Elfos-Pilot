@@ -58,6 +58,11 @@ cond = Y | N | (expression) | (scomp)
 scomp = $var [ < | > | <= | >= | <> | = ] [ $var | "text" ]
 
 expressions allow: +, -, *, /, &, |, ^, <, <=, >, >=, =, <>, (, )
+functions allowed in expressions:
+   peek(address)    - read byte from memory
+   ef(0)            - read state of EF pins
+   inp(port)        - read input port
+   rnd(range)       - random number
 
 string expressions:
   term { + term }{ + term }{...}
