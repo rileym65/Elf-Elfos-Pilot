@@ -150,8 +150,12 @@ load1:     lda     r8                  ; copy the label
            lbnz    load1               ; back to label loop if not
 load2a:    sep     scall               ; move past any spaces
            dw      trim
+           mov     rf,aliases          ; attempt to tokenize command
+           sep     scall
+           dw      tkn_1
+           lbdf    tkn_fnd             ; write token to program if found
 load2:     lda     r8                  ; get byte from line
-           str     ra                  ; store into destination
+tkn_fnd:   str     ra                  ; store into destination
            inc     ra
            inc     r9                  ; increment line size
            lbnz    load2               ; jump if not end of line

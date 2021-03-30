@@ -25,6 +25,31 @@ V:var=[var|$var]             - Return address of var's data
 Y:text                       - Equivalent to TY
 @:var=addr{,expr}            - Call ML subroutine
 
+Command Aliases:
+  Accept           A
+  Alloc            B
+  Dealloc          B
+  Compute          C
+  Let              C
+  End              E
+  Return           E
+  Flags            F
+  Inport           I
+  Jump             J
+  ASCII            K
+  Match            M
+  No               N
+  Outport          O
+  Quit             Q
+  Remark           R
+  Peek             S
+  Poke             S
+  Type             T
+  Call             U
+  Varptr           V
+  Yes              Y
+  Usr              @
+
 Command format:
 
 [*label] command{cond}:operands
