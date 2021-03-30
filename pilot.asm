@@ -1722,40 +1722,7 @@ eval_ex:   mov     rc,tokens+1         ; point to final value
            sep     sret                ; return to caller
 
 isop:      mov     rf,ops              ; point to ops table
-op_1:      ldn     rf                  ; get byte from table
-           lbz     op_no               ; jump if no matches found
-           push    r8                  ; save buffer position
-op_2:      lda     rf                  ; get byte from ops table
-           shl                         ; shift high bit into DF
-           lbdf    op_3                ; jump if last byte of token
-           shr                         ; shift it back
-           str     r2                  ; store for compare
-           lda     r8                  ; get byte from input
-           sm                          ; and compare
-           lbz     op_2                ; jump if match so far
-op_2_1:    lda     rf                  ; get byte from table
-           shl                         ; need to check high bit
-           lbnf    op_2_1              ; loop until last byte found
-           inc     rf                  ; then move past value field
-           pop     r8                  ; recover input position
-           lbr     op_1                ; and check next opeartor
-op_3:      shr                         ; shift value back to the right
-           str     r2                  ; store for comparison
-           lda     r8                  ; get byte from input
-           sm                          ; and compare
-           lbz     op_yes              ; jump if good
-           pop     r8                  ; recover input address
-           inc     rf                  ; move past token value
-           lbr     op_1                ; and check next token
-op_yes:    irx                         ; remove address from stack
-           irx
-           ldi     1                   ; signal operator found
-           shr
-           lda     rf                  ; recover operator value into D
-           sep     sret                ; and return to caller
-op_no:     ldi     0                   ; signal not an operator
-           shr
-           sep     sret                ; and return
+           lbr     tkn_1               ; read token table
 
 ops:       db      ('+'+080h),OP_ADD
            db      ('-'+080h),OP_SUB
@@ -3100,6 +3067,95 @@ atoi_0_1:  lda     r8                  ; get next character
            lbr     atoi_0_1            ; loop back for more numerals
 atoi_0_2:  dec     r8                  ; move back to non-numeral character
            sep     sret                ; and return to caller
+
+; ********************************************
+; ***** Search token table               *****
+; ***** R8 - Input stream                *****
+; ***** RF - Pointer to token table      *****
+; ***** Returns: DF=1 - token found      *****
+; *****             D - Token value      *****
+; *****            R8 - char after token *****
+; *****          DF=0 - Not found        *****
+; *****            R8 - original value   *****
+; ********************************************
+tkn_1:     ldn     rf                  ; get byte from table
+           lbz     tkn_no              ; jump if no matches found
+           push    r8                  ; save buffer position
+tkn_2:     lda     rf                  ; get byte from ops table
+           shl                         ; shift high bit into DF
+           lbdf    tkn_3               ; jump if last byte of token
+           shr                         ; shift it back
+           str     r2                  ; store for compare
+           lda     r8                  ; get byte from input
+           sm                          ; and compare
+           lbz     tkn_2               ; jump if match so far
+tkn_2_1:   lda     rf                  ; get byte from table
+           shl                         ; need to check high bit
+           lbnf    tkn_2_1             ; loop until last byte found
+           inc     rf                  ; then move past value field
+           pop     r8                  ; recover input position
+           lbr     tkn_1               ; and check next opeartor
+tkn_3:     shr                         ; shift value back to the right
+           str     r2                  ; store for comparison
+           lda     r8                  ; get byte from input
+           sm                          ; and compare
+           lbz     tkn_yes             ; jump if good
+           pop     r8                  ; recover input address
+           inc     rf                  ; move past token value
+           lbr     tkn_1               ; and check next token
+tkn_yes:   irx                         ; remove address from stack
+           irx
+           ldi     1                   ; signal operator found
+           shr
+           lda     rf                  ; recover operator value into D
+           sep     sret                ; and return to caller
+tkn_no:    ldi     0                   ; signal not an operator
+           shr
+           sep     sret                ; and return
+
+aliases:   db      'accep',('t'+080h),'a'
+           db      'allo',('c'+080h),'b'
+           db      'comput',('e'+080h),'c'
+           db      'deallo',('c'+080h),'b'
+           db      'le',('t'+080h),'c'
+           db      'en',('d'+080h),'e'
+           db      'retur',('n'+080h),'e'
+           db      'flag',('s'+080h),'f'
+           db      'inpor',('t'+080h),'i'
+           db      'jum',('p'+080h),'j'
+           db      'asci',('i'+080h),'k'
+           db      'matc',('h'+080h),'m'
+           db      'n',('o'+080h),'n'
+           db      'outpor',('t'+080h),'o'
+           db      'qui',('t'+080h),'q'
+           db      'remar',('k'+080h),'r'
+           db      'pee',('k'+080h),'s'
+           db      'pok',('e'+080h),'s'
+           db      'typ',('e'+080h),'t'
+           db      'cal',('l'+080h),'u'
+           db      'varpt',('r'+080h),'v'
+           db      'ye',('s'+080h),'y'
+           db      'us',('r'+080h),'@'
+           db      ('a'+080h),'a'
+           db      ('b'+080h),'b'
+           db      ('c'+080h),'c'
+           db      ('e'+080h),'e'
+           db      ('f'+080h),'f'
+           db      ('i'+080h),'i'
+           db      ('j'+080h),'j'
+           db      ('k'+080h),'k'
+           db      ('m'+080h),'m'
+           db      ('n'+080h),'n'
+           db      ('o'+080h),'o'
+           db      ('q'+080h),'q'
+           db      ('r'+080h),'r'
+           db      ('s'+080h),'s'
+           db      ('t'+080h),'t'
+           db      ('u'+080h),'u'
+           db      ('v'+080h),'v'
+           db      ('y'+080h),'y'
+           db      ('@'+080h),'@'
+           db      0
 
 errmsg:    db      'File not found',10,13,0
 left:      db      'LEFT',0
