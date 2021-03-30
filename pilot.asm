@@ -136,6 +136,20 @@ loadlp:    mov     rf,accept           ; use accept buffer to read line
            plo     r9
            mov     ra,r7               ; set destination for line
            inc     ra
+           ldn     r8                  ; get first byte
+           smi     '*'                 ; is it a label
+           lbnz    load2a              ; jump if not
+load1:     lda     r8                  ; copy the label
+           str     ra
+           inc     ra
+           inc     r9
+           lbz     load3               ; jump if line terminator copied
+           smi     9                   ; was a tab copied
+           lbz     load2a              ; jump if so
+           smi     23                  ; was a space copied
+           lbnz    load1               ; back to label loop if not
+load2a:    sep     scall               ; move past any spaces
+           dw      trim
 load2:     lda     r8                  ; get byte from line
            str     ra                  ; store into destination
            inc     ra
