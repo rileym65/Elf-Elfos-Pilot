@@ -124,56 +124,104 @@ good:      ldi     high fildes         ; get file descriptor
 ; ***** File opened, load the program *****
 ; *****************************************
 load:      mov     r7,program          ; point to program space
-           mov     r8,program+1        ; where first text byte will go
-           ldi     0                   ; line size
+           ldi     0                   ; indicate there are no disk bytes to read
+           plo     rc
+loadlp:    mov     rf,accept           ; use accept buffer to read line
+           sep     scall               ; read next line of program
+           dw      readln
+           mov     r8,accept           ; point to beginning of line
+           sep     scall               ; move past leading spaces
+           dw      trim
+           ldi     0                   ; set line size
            plo     r9
-loadlp:    mov     rc,128              ; attempt to read 128 bytes
+           mov     ra,r7               ; set destination for line
+           inc     ra
+load2:     lda     r8                  ; get byte from line
+           str     ra                  ; store into destination
+           inc     ra
+           inc     r9                  ; increment line size
+           lbnz    load2               ; jump if not end of line
+load3:     inc     r9                  ; account for size byte
+           glo     r9                  ; store line size
+           str     r7
+           mov     r7,ra               ; set new line position
+           ghi     rc                  ; need to see if eof was reached in last line
+           shr                         ; shift flag into DF
+           lbnf    loadlp              ; jump if eof not reached
+           ldi     0                   ; terminate program text
+           str     r7
+           mov     r8,ra               ; need to know where end of program space was
+           inc     r8
+           lbr     run                 ; setup to run
+
+
+
+; *************************************
+; ***** Read line                 *****
+; ***** RF - where to put it      *****
+; ***** Returns: DF=1 - EOF       *****
+; *****          DF=0 - Good read *****
+; *************************************
+readln:    glo     rc                  ; are there still disk bytes
+           lbnz    readln_1            ; jump if so
+           push    rf                  ; save buffer position
+           sep     scall               ; read next block from disk
+           dw      rdblk
+           pop     rf                  ; recover address
+           lbdf    readln_e            ; jump if eof encountered
+readln_1:  lda     rb                  ; get next byte from disk buffer
+           plo     re                  ; save a copy
+           dec     rc                  ; decrement byte count
+           ani     0e0h                ; check for control characters
+           lbz     readln              ; ignore any leading control characters
+readln_2:  glo     re                  ; recover character
+           str     rf                  ; write into destination buffer
+           inc     rf
+           glo     rc                  ; are there more bytes in disk buffer
+           lbnz    readln_2a           ; jump if so
+           push    rf                  ; save buffer position
+           sep     scall               ; read next block from disk
+           dw      rdblk
+           pop     rf
+           lbdf    readln_e            ; jump if eof found
+readln_2a: lda     rb                  ; get next byte from buffer
+           plo     re                  ; save a copy
+           dec     rc                  ; decrement byte count
+           smi     10                  ; check for line feed
+           lbz     readln_e2           ; jump if end of line
+           smi     3                   ; check carriage return as well
+           lbnz    readln_2            ; jump if good line character
+readln_e2: ldi     0                   ; signal not eof
+           shr
+readln_e:  ldi     0                   ; store terminator into line
+           str     rf
+           sep     sret                ; return to caller
+
+; ********************************************
+; ***** Read 128 bytes from input file   *****
+; ***** Returns: DF=1 - EOF hit          *****
+; *****          DF=0 - good read        *****
+; *****            RB - pointer to bytes *****
+; *****            RC - Count of bytes   *****
+; ********************************************
+rdblk:     mov     rc,128              ; attempt to read 128 bytes
            mov     rf,buffer           ; transfer buffer
            sep     scall               ; read next block of bytes
            dw      o_read
            glo     rc                  ; see if bytes were read
-           lbnz    load1               ; jump if so
-           sep     scall               ; close the file
+           lbz     eof                 ; jump if no bytes were read
+           mov     rb,buffer           ; set point to bytes
+           ldi     0                   ; signal not at eof
+           phi     rc
+           shr
+           sep     sret                ; and return
+eof:       sep     scall               ; close the file
            dw      o_close
-           glo     r9                  ; get line size
-           lbz     load_dn             ; jump if no bytes
-           adi     2                   ; +2 for size byte and terminator
-           str     r7                  ; store line size at beginning of line
-load_dn:   ldi     0                   ; write terminator to program space
-           str     r8
-           inc     r8
-           lbr     run                 ; then jump to run program
-load1:     mov     rf,buffer           ; point to beginning of buffer
-load1_lp:  lda     rf                  ; get byte from buffer
-           plo     re                  ; save a copy
-           smi     10                  ; check for end of line
-           lbz     load_eol            ; jump if so
-           smi     3                   ; check for 0x0c as well
-           lbz     load_eol            ; jump if so
-           glo     re                  ; recover byte
-           smi     ' '                 ; check for space
-           lbnz    load2               ; jump if not
-           glo     r9                  ; get line size
-           lbz     load3               ; do not store leading spaces
-load2:     glo     re                  ; recover byte
-           str     r8                  ; store byte into program space
-           inc     r8
-           inc     r9                  ; increment line size
-load3:     dec     rc                  ; decrement block count
-           glo     rc                  ; see if done with block
-           lbz     loadlp              ; jump to load next block
-           lbr     load1_lp            ; loop back to next char in block
-load_eol:  glo     r9                  ; check line size
-           lbz     load3               ; do nothing if empty line
-           adi     2                   ; +2 for size byte and terminator
-           str     r7                  ; store line size
-           ldi     0                   ; terminate current line
-           str     r8
-           inc     r8
-           plo     r9                  ; reset line count
-           mov     r7,r8               ; next start position
-           inc     r8                  ; where next text byte goes
-           lbr     load3               ; keep processing input
+           ldi     1                   ; signal eof
+           phi     rc
+           shr
+           sep     sret                ; and return
+
 
 ; **********************************
 ; ***** Prepare program to run *****
