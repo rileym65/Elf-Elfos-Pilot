@@ -11,6 +11,11 @@
 ; R9 - Data block
 ; RA - PC Stack pointer
 
+OP_FPEEK:  equ     051h
+OP_FINP:   equ     052h
+OP_FEF:    equ     053h
+OP_FRND:   equ     054h
+OP_FLEN:   equ     055h
 OP_MUL:    equ     042h
 OP_DIV:    equ     041h
 OP_ADD:    equ     032h
@@ -1663,27 +1668,28 @@ eval_val:  ldi     OP_NUM              ; mark token as
            str     r9
            lbr     eval_lp             ; loop back for more tokens
 
+; ***** Check for operators *****
+eval_1:    sep     scall               ; check for operator
+           dw      isop
+           lbnf    eval_2              ; jump if not
+           sep     scall               ; add the new operator
+           dw      addop
+           lbr     eval_lp             ; and loop back for more
+
 ; ***** Process variables *****
-eval_1:    ldn     r8                  ; get byte
+eval_2:    ldn     r8                  ; get byte
            smi     '#'                 ; check for integer marker
-           lbz     eval_1a             ; jump if so
+           lbz     eval_2a             ; jump if so
            ldn     r8                  ; recover character
            sep     scall               ; see if a variable character
            dw      is_varchr
-           lbnf    eval_2              ; jump if not
+           lbnf    eval_3              ; jump if not
            dec     r8
-eval_1a:   inc     r8                  ; move past #
+eval_2a:   inc     r8                  ; move past #
            sep     scall               ; retrieve variable value
            dw      getivar
            lbr     eval_val            ; store value into next token
 
-; ***** Check for operators *****
-eval_2:    sep     scall               ; check for operator
-           dw      isop
-           lbnf    eval_3              ; jump if not
-           sep     scall               ; add the new operator
-           dw      addop
-           lbr     eval_lp             ; and loop back for more
 ; ***** Check for open parens *****
 eval_3:    ldn     r8                  ; get character
            smi     '('                 ; is it open parens
