@@ -244,7 +244,8 @@ eof:       sep     scall               ; close the file
 ; **********************************
 ; ***** Prepare program to run *****
 ; **********************************
-run:       mov     r7,program          ; point to first program line
+run:       mov     r2,stack
+           mov     r7,program          ; point to first program line
            mov     r9,matched          ; point to data block
            ldi     0                   ; clear matched flag
            str     r9
@@ -3151,8 +3152,13 @@ tkn_2:     lda     rf                  ; get byte from ops table
            shl                         ; shift high bit into DF
            lbdf    tkn_3               ; jump if last byte of token
            shr                         ; shift it back
-           str     r2                  ; store for compare
+           stxd                        ; store for compare
            lda     r8                  ; get byte from input
+           sep     scall               ; check for uppercase
+           dw      is_uc
+           lbnf    tkn_2a              ; jump if not
+           adi     32                  ; convert to lowercase
+tkn_2a:    irx
            sm                          ; and compare
            lbz     tkn_2               ; jump if match so far
 tkn_2_1:   lda     rf                  ; get byte from table
@@ -3162,8 +3168,13 @@ tkn_2_1:   lda     rf                  ; get byte from table
            pop     r8                  ; recover input position
            lbr     tkn_1               ; and check next opeartor
 tkn_3:     shr                         ; shift value back to the right
-           str     r2                  ; store for comparison
+           stxd                        ; store for comparison
            lda     r8                  ; get byte from input
+           sep     scall               ; check for uppercase
+           dw      is_uc
+           lbnf    tkn_3a              ; jump if not
+           adi     32                  ; convert to lowercase
+tkn_3a:    irx
            sm                          ; and compare
            lbz     tkn_yes             ; jump if good
            pop     r8                  ; recover input address
@@ -3243,6 +3254,8 @@ dta:       ds      512
 pcstack:   ds      256
 accept:    dw      256
 tokens:    ds      60*3
+           ds      64
+stack:     ds      1
 program:   ds      1
 
 ; Var table format:
