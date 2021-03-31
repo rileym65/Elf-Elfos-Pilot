@@ -107,3 +107,29 @@ Notes:
 
   M can use text or string variables as search options
 
+useful addresses:
+  Address   Size       Description
+  $2024       1      - Matched flag
+  $2027       2      - Pointer to variable table start
+  $2029       2      - Pointer to end of variable table.  Memory after
+                       this and below the heap is considered unallocated
+                       memory
+  $202B       2      - Pointer to heap start.
+  $202D       4      - LFSR register use by the rnd() function
+
+useful vectors for machine language subroutines:
+  $2044       - Set integer variable (setivar)
+  $2047       - Get integer variable (getivar)
+  $204A       - Set string variable (setsvar)
+  $204D       - Get string variable (getsvar)
+  $2050       - Find variable (findvar)
+  $2053       - Allocate memory on heap (alloc)
+  $2056       - Deallocate memory on heap (dealloc)
+  $2059       - Convert integer to ASCII (itoa)
+  $205C       - Convert ASCII to integer (atoi)
+  $205F       - Expression evaluator (evaluate)
+
+Note with machine language vectors, you will need to lookup the appropriate
+routines in the source to know how to call them.
+
+
