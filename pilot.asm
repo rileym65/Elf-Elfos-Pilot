@@ -63,6 +63,7 @@ vartable:  dw      0
 varend:    dw      0
 heap:      dw      0
 lfsr:      db      0,0,0,0
+overflow:  db      0
 
 readef:    ldi     0                   ; start with 0
            bn1     ef1                 ; jump if EF1=0
@@ -344,6 +345,11 @@ nolabel:   lda     r8                  ; get command byte
            ldn     r8
            smi     'y'
            lbz     c_ysmatch
+           ldn     r8                  ; check for o/O
+           smi     'O'
+           lbz     c_otest
+           smi     32
+           lbz     c_otest
            ldn     r8                  ; check for expression
            smi     '('
            lbnz    c_nocond            ; jump if not
@@ -456,6 +462,12 @@ exp_qt1:   lda     r8                  ; get byte from program
            lbr     exp_str2            ; now do comparison
 
 
+c_otest:   inc     r8                  ; move past condition byte
+           ldi     low overflow        ; get overflow flag
+           plo     r9
+           ldn     r9
+           lbnz    c_nocond            ; jump if overflow
+           lbr     lineend             ; otherwise line end
 c_nomatch: inc     r8                  ; move past condition byte
            ldi     low matched         ; get matched flag
            plo     r9
@@ -1618,6 +1630,12 @@ reduce2:   dec     rb                  ; retrieve argument 1
            glo     rf                  ; check OP_ADD
            smi     OP_ADD
            lbnz    r_n_add
+addsub:    ghi     rc                  ; compare signs
+           str     r2
+           ghi     rd
+           xor
+           plo     re                  ; save comparison for now
+           dec     r2                  ; preserve original value
            glo     rd
            str     r2
            glo     rc
@@ -1628,14 +1646,32 @@ reduce2:   dec     rb                  ; retrieve argument 1
            ghi     rc
            adc
            phi     rc
+           inc     r2                  ; put r2 back
+           glo     re                  ; recover sign comparison
+           shl                         ; shift into DF
+           lbdf    r_done              ; jump if signs were different
+           ghi     rc                  ; compare result sign with original
+           xor
+           shl                         ; shift into DF
+           lbnf    r_done              ; jump if sign did not change
+           ldi     low overflow        ; need to signal overflow
+           plo     r9
+           ldi     0ffh
+           str     r9
            lbr     r_done
 ; ----- OP_SUB RC -= RD
 r_n_add:   glo     rf                  ; check OP_SUB
            smi     OP_SUB
            lbnz    r_n_sub
-           sep     scall               ; perform subtraction
-           dw      rsub
-           lbr     r_done
+           glo     rd                  ; 2s compliment RD
+           xri     0ffh
+           adi     1
+           plo     rd
+           ghi     rd
+           xri     0ffh
+           adci    0
+           phi     rd
+           lbr     addsub              ; now use addition
 ; ----- OP_MUL RC *= RD
 r_n_sub:   glo     rf                  ; check OP_MUL
            smi     OP_MUL
@@ -1852,7 +1888,11 @@ addop_go:  glo     re                  ; recover op
            str     r9
            sep     sret                ; and return to caller
 
-evaluate:  ldi     low parens          ; point to parens
+evaluate:  ldi     low overflow        ; point to overflow flag
+           plo     r9
+           ldi     0                   ; clear it
+           str     r9
+           ldi     low parens          ; point to parens
            plo     r9
            ldi     0                   ; set to zero
            str     r9
