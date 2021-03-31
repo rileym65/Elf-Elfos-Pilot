@@ -1845,11 +1845,11 @@ eval_val:  ldi     OP_NUM              ; mark token as
 ; ***** Check for binary number *****
 eval_0:    ldn     r8                  ; get byte from input
            smi     '%'                 ; check for binary marker
-           lbnz    eval_1              ; jump if not
+           lbnz    eval_6              ; jump if not
            inc     r8                  ; move past %
            mov     rf,0                ; start number at 0
 eval_0a:   lda     r8                  ; get next byte from input
-           lbz     eval_val            ; jump if end of input
+           lbz     eval_6z             ; jump if end of input
            smi     '0'                 ; was it a zero?
            lbnz    eval_0b             ; jump if not
            ldi     0                   ; clear DF
@@ -1869,6 +1869,56 @@ eval_0c:   smi     46                  ; check for underscore
            lbz     eval_0a             ; valid character, but no effect
            dec     r8                  ; move back to non-binary character
            lbr     eval_val            ; store number
+
+eval_6:    ldn     r8                  ; get byte from input
+           smi     '$'                 ; check for hex constant
+           lbnz    eval_1              ; jump if not
+           inc     r8                  ; need next character to be sure
+           ldn     r8                  ; retrieve it
+           sep     scall               ; is it a number
+           dw      is_number
+           lbdf    eval_6a             ; jump if so
+           dec     r8                  ; move pointer back
+           lbr     eval_1              ; and check next type
+eval_6a:   mov     rf,0                ; clear number
+eval_6b:   lda     r8                  ; get next byte
+           lbz     eval_6z             ; end of constant if end of input
+           smi     '0'                 ; check if below digits
+           lbnf    eval_6z             ; jump if so
+           smi     10                  ; check for end of numbers
+           lbdf    eval_6c             ; jump if so
+           adi     10                  ; restore number
+eval_6s:   str     r2                  ; save it for later
+           ldi     4                   ; need 4 shifts
+           plo     re
+eval_6d:   glo     rf                  ; shift number
+           shl
+           plo     rf
+           ghi     rf
+           shlc
+           phi     rf
+           dec     re                  ; decrement count
+           glo     re                  ; see if done
+           lbnz    eval_6d             ; jump if not
+           glo     rf                  ; add in new digit
+           or
+           plo     rf
+           lbr     eval_6b             ; keep reading hex digits
+
+eval_6c:   smi     7                   ; check for A
+           lbnf    eval_6z             ; jump if below A
+           smi     6                   ; check if below F
+           lbdf    eval_6e             ; jump if above F
+           adi     16                  ; conver to binary
+           lbr     eval_6s             ; combine with rest of number
+eval_6e:   smi     26                  ; check for a
+           lbnf    eval_6z             ; jump if below a
+           smi     6                   ; check if below f
+           lbdf    eval_6z             ; jump if not
+           adi     16                  ; convert to proper binary
+           lbr     eval_6s             ; and combine with rest of number
+eval_6z:   dec     r8                  ; move back to non-valid character
+           lbr     eval_val            ; and store value
 
 ; ***** Check for operators *****
 eval_1:    sep     scall               ; check for operator
