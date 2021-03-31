@@ -1823,7 +1823,7 @@ eval_lp:   ldn     r8                  ; get byte from input
            lbz     eval_dn             ; jump if end of input reached
            sep     scall               ; see if numeric
            dw      is_number
-           lbnf    eval_1              ; jump if not
+           lbnf    eval_0              ; jump if not
            sep     scall               ; convert to binary
            dw      atoi
 eval_val:  ldi     OP_NUM              ; mark token as 
@@ -1841,6 +1841,34 @@ eval_val:  ldi     OP_NUM              ; mark token as
            adi     1
            str     r9
            lbr     eval_lp             ; loop back for more tokens
+
+; ***** Check for binary number *****
+eval_0:    ldn     r8                  ; get byte from input
+           smi     '%'                 ; check for binary marker
+           lbnz    eval_1              ; jump if not
+           inc     r8                  ; move past %
+           mov     rf,0                ; start number at 0
+eval_0a:   lda     r8                  ; get next byte from input
+           lbz     eval_val            ; jump if end of input
+           smi     '0'                 ; was it a zero?
+           lbnz    eval_0b             ; jump if not
+           ldi     0                   ; clear DF
+eval_0s:   shr
+           glo     rf                  ; shift number left
+           shlc
+           plo     rf
+           ghi     rf
+           shlc
+           phi     rf
+           lbr     eval_0a             ; and keep processing
+eval_0b:   smi     1                   ; check for 1
+           lbnz    eval_0c             ; jump if not
+           ldi     1                   ; need to shift in a 1
+           lbr     eval_0s
+eval_0c:   smi     46                  ; check for underscore
+           lbz     eval_0a             ; valid character, but no effect
+           dec     r8                  ; move back to non-binary character
+           lbr     eval_val            ; store number
 
 ; ***** Check for operators *****
 eval_1:    sep     scall               ; check for operator
