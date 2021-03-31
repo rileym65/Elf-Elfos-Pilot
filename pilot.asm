@@ -85,7 +85,7 @@ p_eval:    lbr     evaluate
 
 start:     sep     scall               ; display header
            dw      o_inmsg
-           db      'Rc/Pilot+ 0.9',10,13,0
+           db      'Rc/Pilot+ 0.98',10,13,0
            lda     ra                  ; move past any spaces
            smi     ' '
            lbz     start
