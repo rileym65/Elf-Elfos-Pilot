@@ -1261,7 +1261,10 @@ mdnorm3:   glo     re                  ; recover sign flag
 ; *** Function to multiply 2 16 bit numbers ***
 ; *** RC *= RD                              ***
 ; *********************************************
-mul16:     push    rf                  ; save consumed registers
+mul16:     push    rf                  ; save consumed register
+           sep     scall               ; normalize numbers
+           dw      mdnorm
+           plo     re                  ; save for later
            ldi     0                   ; zero out total
            phi     rf
            plo     rf
@@ -1270,7 +1273,18 @@ mulloop:   glo     rd                  ; get low of multiplier
            ghi     rd                  ; check hi byte as well
            lbnz    mulcont
            mov     rc,rf               ; transfer answer
-           pop     rf                  ; recover consumed registers
+           glo     re                  ; get sign comparison
+           shr                         ; shift into DF
+           lbnf    mulexit             ; jump if signs were the same
+           glo     rc                  ; 2s compliment answer
+           xri     0ffh
+           adi     1
+           plo     rc
+           ghi     rc
+           xri     0ffh
+           adci    0
+           phi     rc
+mulexit:   pop     rf                  ; recover consumed registers
            sep     sret                ; return to caller
 mulcont:   ghi     rd                  ; shift multiplier
            shr
