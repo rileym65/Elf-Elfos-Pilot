@@ -16,6 +16,8 @@ OP_FINP:   equ     052h
 OP_FEF:    equ     053h
 OP_FRND:   equ     054h
 OP_FLEN:   equ     055h
+OP_FASC:   equ     056h
+OP_FVAL:   equ     057h
 OP_MUL:    equ     042h
 OP_DIV:    equ     041h
 OP_ADD:    equ     032h
@@ -1451,7 +1453,42 @@ reduce_1c: glo     rf                  ; recover command
            dw      fn_lfsr
            lbr     r_done1
 
-reduce_1d:
+; ----- OP_FLEN RC = len($RD)
+reduce_1d: glo     rf                  ; recover command
+           smi     OP_FLEN             ; check for len
+           lbnz    reduce_1e           ; jump if not
+           push    rf                  ; save rf
+           mov     rf,rd               ; move string address for strlen
+           sep     scall
+           dw      strlen
+           pop     rf                  ; recover rf
+           lbr     r_done1
+
+; ----- OP_FASC RC = asc($RD)
+reduce_1e: glo     rf                  ; recover command
+           smi     OP_FASC             ; check for asc
+           lbnz    reduce_1f           ; jump if not
+           lda     rd                  ; get first byte of string
+           plo     rc
+           ldi     0
+           phi     rc
+           lbr     r_done1
+
+; ----- OP_FVAL RC = val($RD)
+reduce_1f: glo     rf                  ; recover command
+           smi     OP_FVAL             ; check for VAL
+           lbnz    reduce_1g           ; jump if not
+           push    r8                  ; save consumed registers
+           push    rf
+           mov     r8,rd               ; move ascii address to r8
+           sep     scall               ; convert to binary
+           dw      atoi
+           mov     rc,rf               ; move result
+           pop     rf                  ; recover registers
+           pop     r8
+           lbr     r_done1
+
+reduce_1g:
 
            ldn     r9                  ; get number of tokens
            smi     3                   ; see if less than 3
@@ -1778,12 +1815,20 @@ eval_2:    ldn     r8                  ; get byte
            ldn     r8                  ; recover character
            sep     scall               ; see if a variable character
            dw      is_varchr
-           lbnf    eval_3              ; jump if not
+           lbnf    eval_21             ; jump if not
            dec     r8
 eval_2a:   inc     r8                  ; move past #
            sep     scall               ; retrieve variable value
            dw      getivar
            lbr     eval_val            ; store value into next token
+
+eval_21:   ldn     r8                  ; get byte
+           smi     '$'                 ; check for string
+           lbnz    eval_3              ; jump if not
+           inc     r8                  ; must past $ sign
+           sep     scall               ; retrieve variable address
+           dw      getsvar
+           lbr     eval_val            ; store into next token
 
 ; ***** Check for open parens *****
 eval_3:    ldn     r8                  ; get character
@@ -1913,6 +1958,8 @@ ops:       db      ('+'+080h),OP_ADD
            db      'rn',('d'+080h),OP_FRND
            db      'e',('f'+080h),OP_FEF
            db      'le',('n'+080h),OP_FLEN
+           db      'as',('c'+080h),OP_FASC
+           db      'va',('l'+080h),OP_FVAL
            db      0
 
 ; *********************************************

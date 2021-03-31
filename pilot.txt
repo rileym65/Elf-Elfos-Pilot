@@ -63,6 +63,9 @@ functions allowed in expressions:
    ef(0)            - read state of EF pins
    inp(port)        - read input port
    rnd(range)       - random number
+   len($var)        - length of string
+   asc($var)        - ascii value of first char of string
+   val($var)        - numeric value of string
 
 string expressions:
   term { + term }{ + term }{...}
