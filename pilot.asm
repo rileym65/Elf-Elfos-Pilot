@@ -18,6 +18,7 @@ OP_FRND:   equ     054h
 OP_FLEN:   equ     055h
 OP_FASC:   equ     056h
 OP_FVAL:   equ     057h
+OP_FFRE:   equ     058h
 OP_MUL:    equ     042h
 OP_DIV:    equ     041h
 OP_ADD:    equ     032h
@@ -269,6 +270,13 @@ run:       mov     r2,stack
            str     r9
            ldi     0                   ; clear variable table
            str     r8
+           ldi     low varend          ; point to variable table end
+           plo     r9
+           ghi     r8                  ; set to just after program text
+           str     r9
+           inc     r9
+           glo     r8
+           str     r9
            ldi     low heap            ; point to heap pointer
            plo     r9
            mov     rf,HIMEM            ; point to Elf/OS high memory pointer
@@ -1488,7 +1496,32 @@ reduce_1f: glo     rf                  ; recover command
            pop     r8
            lbr     r_done1
 
-reduce_1g:
+; ----- OP_FASC RC = asc($RD)
+reduce_1g: glo     rf                  ; recover command
+           smi     OP_FFRE             ; check for fre
+           lbnz    reduce_1h           ; jump if not
+           ldi     low heap            ; get address of heap
+           plo     r9
+           lda     r9                  ; get heap start address
+           phi     rc
+           lda     r9
+           plo     rc
+           ldi     low varend+1        ; need end of variable table
+           plo     r9
+           ldn     r9                  ; get msb
+           str     r2                  ; store for subtract
+           glo     rc                  ; subtract from heap start
+           sm
+           plo     rc
+           dec     r9                  ; move to msb of varend
+           ldn     r9                  ; retrieve it
+           str     r2                  ; store for subtract
+           ghi     rc
+           smb
+           phi     rc
+           lbr     r_done1
+
+reduce_1h:
 
            ldn     r9                  ; get number of tokens
            smi     3                   ; see if less than 3
@@ -1960,6 +1993,7 @@ ops:       db      ('+'+080h),OP_ADD
            db      'le',('n'+080h),OP_FLEN
            db      'as',('c'+080h),OP_FASC
            db      'va',('l'+080h),OP_FVAL
+           db      'fr',('e'+080h),OP_FFRE
            db      0
 
 ; *********************************************
