@@ -87,7 +87,7 @@ p_eval:    lbr     evaluate
 
 start:     sep     scall               ; display header
            dw      o_inmsg
-           db      'Rc/Pilot+ 0.98',10,13,0
+           db      'Rc/Pilot+ rc-1',10,13,0
            lda     ra                  ; move past any spaces
            smi     ' '
            lbz     start
@@ -1296,9 +1296,6 @@ mulcont2:  glo     rc                  ; shift first number
            phi     rc
            lbr     mulloop             ; loop until done
 
-; *** RC = RB/R7
-; *** RB = remainder
-; *** uses R8 and R9
 ; *********************************************
 ; *** Function to divide 2 16 bit numbers   ***
 ; *** RC /= RD                              ***
@@ -1394,6 +1391,31 @@ divno:     ghi     rd                  ; get hi of divisor
            plo     r8
            lbr     divst               ; next iteration
 
+
+; *********************************************
+; *** Modulo function of 2 16 bit numbers   ***
+; *** RC = RC % RD                          ***
+; *********************************************
+mod16:     push    rc                  ; will need both original numbers later
+           push    rd
+           sep     scall               ; perform division
+           dw      div16
+           pop     rd                  ; multiply by original RD
+           sep     scall
+           dw      mul16
+           pop     rd                  ; recover original RC
+           glo     rc                  ; RC = RD - RC
+           str     r2
+           glo     rd
+           sm
+           plo     rc
+           ghi     rc
+           str     r2
+           ghi     rd
+           smb
+           phi     rc
+           sep     sret                ; return to caller
+
 ; *****************************************************
 ; ***** Perform calculation on top of token stack *****
 ; *****************************************************
@@ -1460,6 +1482,11 @@ reduce_1c: glo     rf                  ; recover command
            lbnz    reduce_1d           ; jump if not
            sep     scall               ; get random number
            dw      fn_lfsr
+           ghi     rc                  ; no negatives
+           ani     07fh
+           phi     rc
+           sep     scall               ; and perform modulo function against range
+           dw      mod16
            lbr     r_done1
 
 ; ----- OP_FLEN RC = len($RD)

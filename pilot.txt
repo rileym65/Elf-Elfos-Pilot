@@ -58,16 +58,22 @@ cond = Y | N | (expression) | (scomp)
 scomp = $var [ < | > | <= | >= | <> | = ] [ $var | "text" ]
 
 expressions allow: +, -, *, /, &, |, ^, <, <=, >, >=, =, <>, (, )
-functions allowed in expressions:
-   asc($var)        - ascii value of first char of string
-   ef(0)            - read state of EF pins
-   fre(0)           - amount of unallocated memory
-   heap(0)          - amount of free heap memory
-   inp(port)        - read input port
-   len($var)        - length of string
-   peek(address)    - read byte from memory
-   rnd(range)       - random number
-   val($var)        - numeric value of string
+   Special characters in numeric expressions:
+     #var           - Numeric variable (# is optional)
+     $var           - will produce the address of the strings data
+     $hex           - Hex constant, first character after $ must be 0-9
+     %binary        - Binary constant, only 1, 0, and _ are allowed
+
+   functions allowed in expressions:
+     asc($var)        - ascii value of first char of string
+     ef(0)            - read state of EF pins
+     fre(0)           - amount of unallocated memory
+     heap(0)          - amount of free heap memory
+     inp(port)        - read input port
+     len($var)        - length of string
+     peek(address)    - read byte from memory
+     rnd(range)       - random number
+     val($var)        - numeric value of string
 
 string expressions:
   term { + term }{ + term }{...}
