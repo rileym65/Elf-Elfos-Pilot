@@ -62,6 +62,7 @@ functions allowed in expressions:
    asc($var)        - ascii value of first char of string
    ef(0)            - read state of EF pins
    fre(0)           - amount of unallocated memory
+   heap(0)          - amount of free heap memory
    inp(port)        - read input port
    len($var)        - length of string
    peek(address)    - read byte from memory

@@ -19,6 +19,7 @@ OP_FLEN:   equ     055h
 OP_FASC:   equ     056h
 OP_FVAL:   equ     057h
 OP_FFRE:   equ     058h
+OP_FHEAP:  equ     059h
 OP_MUL:    equ     042h
 OP_DIV:    equ     041h
 OP_ADD:    equ     032h
@@ -1496,7 +1497,7 @@ reduce_1f: glo     rf                  ; recover command
            pop     r8
            lbr     r_done1
 
-; ----- OP_FASC RC = asc($RD)
+; ----- OP_FASC RC = fre($RD)
 reduce_1g: glo     rf                  ; recover command
            smi     OP_FFRE             ; check for fre
            lbnz    reduce_1h           ; jump if not
@@ -1521,7 +1522,15 @@ reduce_1g: glo     rf                  ; recover command
            phi     rc
            lbr     r_done1
 
-reduce_1h:
+; ----- OP_FHEAP RC = heap($RD)
+reduce_1h: glo     rf                  ; recover command
+           smi     OP_FHEAP            ; check for heap
+           lbnz    reduce_1i           ; jump if not
+           sep     scall               ; get amount of free heap memory
+           dw      hfree
+           lbr     r_done1
+
+reduce_1i:
 
            ldn     r9                  ; get number of tokens
            smi     3                   ; see if less than 3
@@ -1994,6 +2003,7 @@ ops:       db      ('+'+080h),OP_ADD
            db      'as',('c'+080h),OP_FASC
            db      'va',('l'+080h),OP_FVAL
            db      'fr',('e'+080h),OP_FFRE
+           db      'hea',('p'+080h),OP_FHEAP
            db      0
 
 ; *********************************************
@@ -2895,6 +2905,53 @@ heapgc_a:  mov     rd,rf               ; move pointer to next block
 heapgc_dn: pop     rd                  ; recover consumed registers
            pop     rc
            sep     sret                ; return to caller
+
+; *********************************************
+; ***** Return amount of free heap memory *****
+; ***** Returns: RC - free heap memory    *****
+; *********************************************
+hfree:     push    rf                  ; save consumed registers
+           push    rd
+           mov     rc,0                ; clear count
+           ldi     low heap            ; setup heap pointer
+           plo     r9
+           lda     r9                  ; retrieve start of heap
+           phi     rf
+           ldn     r9
+           plo     rf
+hfree_lp:  lda     rf                  ; get heap allocation status byte
+           lbz     hfree_dn            ; jump if end of heap
+           plo     re                  ; save this for a moment
+           lda     rf                  ; retrieve block size
+           phi     rd
+           lda     rf
+           plo     rd
+           str     r2                  ; add size to block address
+           glo     rf
+           add
+           plo     rf
+           ghi     rd
+           str     r2
+           ghi     rf
+           adc
+           phi     rf
+           glo     re                  ; recover status byte
+           smi     1                   ; is it a free block
+           lbnz    hfree_lp            ; jump if not
+           glo     rd                  ; add block size to count
+           str     r2
+           glo     rc
+           add
+           plo     rc
+           ghi     rd
+           str     r2
+           ghi     rc
+           adc
+           phi     rc
+           lbr     hfree_lp            ; check next block
+hfree_dn:  pop     rd                  ; recover consumed registers
+           pop     rf
+           sep     sret                ; and return
 
 ; *************************************************************************
 ; *****                   End of  Heap Manager                        *****
