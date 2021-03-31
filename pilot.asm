@@ -62,6 +62,7 @@ parens:    db      0
 vartable:  dw      0
 varend:    dw      0
 heap:      dw      0
+lfsr:      db      0,0,0,0
 
 readef:    ldi     0                   ; start with 0
            bn1     ef1                 ; jump if EF1=0
@@ -3686,7 +3687,6 @@ cbuffer:   ds      80
 dta:       ds      512
 pcstack:   ds      256
 accept:    ds      256
-lfsr:      ds      4
 tokens:    ds      60*3
            ds      64
 stack:     ds      1
