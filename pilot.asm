@@ -1315,12 +1315,24 @@ mulcont:   ghi     rd                  ; shift multiplier
            ghi     rf
            adc
            phi     rf
+           lbdf    mulof               ; jump if overflow occurred on add
+           shl                         ; shift high bit into DF
+           lbnf    mulcont2            ; jump if not set
+mulof:     ldi     low overflow        ; signal overflow
+           plo     r9
+           ldi     0ffh
+           str     r9
 mulcont2:  glo     rc                  ; shift first number
            shl
            plo     rc
            ghi     rc
            shlc
            phi     rc
+           lbnf    mulloop             ; jump if no overflow
+           ldi     low overflow        ; signal overflow
+           plo     r9
+           ldi     0ffh
+           str     r9
            lbr     mulloop             ; loop until done
 
 ; *********************************************
