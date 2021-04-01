@@ -38,6 +38,7 @@ Command Aliases:
   Inport           I
   Jump             J
   ASCII            K
+  Logic            L
   Match            M
   No               N
   Outport          O
