@@ -1807,10 +1807,10 @@ r_n_ne:    glo     rf                  ; check OP_EQ
            sep     scall               ; perform compare
            dw      rsub
            glo     rc
-           lbz     r_logic1
+           lbnz    r_logic0
            ghi     rc
-           lbz     r_logic1
-           lbr     r_logic0
+           lbnz    r_logic0
+           lbr     r_logic1
 ; ----- OP_GT RC != RD
 r_n_eq:    glo     rf                  ; check OP_GT
            smi     OP_GT
