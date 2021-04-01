@@ -90,7 +90,7 @@ p_eval:    lbr     evaluate
 
 start:     sep     scall               ; display header
            dw      o_inmsg
-           db      'Rc/Pilot+ rc-2',10,13,0
+           db      'Rc/Pilot+ rc-3',10,13,0
            lda     ra                  ; move past any spaces
            smi     ' '
            lbz     start
@@ -1811,12 +1811,17 @@ r_n_ne:    glo     rf                  ; check OP_EQ
            ghi     rc
            lbnz    r_logic0
            lbr     r_logic1
-; ----- OP_GT RC != RD
+; ----- OP_GT RC > RD
 r_n_eq:    glo     rf                  ; check OP_GT
            smi     OP_GT
            lbnz    r_n_gt
            sep     scall               ; perform compare
            dw      rsub
+           ghi     rc
+           str     r2
+           glo     rc
+           or
+           lbz     r_logic0
            ghi     rc
            shl
            lbnf    r_logic1
