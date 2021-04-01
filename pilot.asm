@@ -64,6 +64,7 @@ varend:    dw      0
 heap:      dw      0
 lfsr:      db      0,0,0,0
 overflow:  db      0
+logic:     db      0
 
 readef:    ldi     0                   ; start with 0
            bn1     ef1                 ; jump if EF1=0
@@ -89,7 +90,7 @@ p_eval:    lbr     evaluate
 
 start:     sep     scall               ; display header
            dw      o_inmsg
-           db      'Rc/Pilot+ rc-1',10,13,0
+           db      'Rc/Pilot+ rc-2',10,13,0
            lda     ra                  ; move past any spaces
            smi     ' '
            lbz     start
@@ -350,6 +351,16 @@ nolabel:   lda     r8                  ; get command byte
            lbz     c_otest
            smi     32
            lbz     c_otest
+           ldn     r8                  ; check for t/T
+           smi     'T'
+           lbz     c_ttest
+           smi     32
+           lbz     c_ttest
+           ldn     r8                  ; check for f/F
+           smi     'F'
+           lbz     c_ftest
+           smi     32
+           lbz     c_ftest
            ldn     r8                  ; check for expression
            smi     '('
            lbnz    c_nocond            ; jump if not
@@ -462,6 +473,18 @@ exp_qt1:   lda     r8                  ; get byte from program
            lbr     exp_str2            ; now do comparison
 
 
+c_ftest:   inc     r8                  ; move past condition byte
+           ldi     low logic           ; get logic flag
+           plo     r9
+           ldn     r9
+           lbz     c_nocond            ; jump if logic flag clear
+           lbr     lineend             ; otherwise line end
+c_ttest:   inc     r8                  ; move past condition byte
+           ldi     low logic           ; get logic flag
+           plo     r9
+           ldn     r9
+           lbnz    c_nocond            ; jump if logic flag set
+           lbr     lineend             ; otherwise line end
 c_otest:   inc     r8                  ; move past condition byte
            ldi     low overflow        ; get overflow flag
            plo     r9
@@ -508,7 +531,9 @@ c_nocond:  sep     scall               ; move past any spaces
            lbz     cmd_j
            smi     1                   ; check for K command
            lbz     cmd_k
-           smi     2                   ; check for M command
+           smi     1                   ; check for L command
+           lbz     cmd_l
+           smi     1                   ; check for M command
            lbz     cmd_m
            smi     1                   ; check for N command
            lbz     cmd_n
@@ -792,6 +817,27 @@ cmd_k:     sep     scall               ; move past any spaces
            smi     ','                 ; check for comma
            lbz     cmd_k               ; process next code
            lbr     lineend             ; otherwise done
+
+; ***************************************
+; ***** Command L, Set logic flag   *****
+; ***************************************
+cmd_l:     sep     scall               ; move past any spaces
+           dw      trim
+           sep     scall               ; evaluate port
+           dw      evaluate
+           ldi     low logic           ; point to logic flag
+           plo     r9
+           glo     rf                  ; check for nonzero
+           str     r2
+           ghi     rf
+           or
+           lbnz    cmd_la              ; jump if nonzero
+           ldi     0                   ; clear logic flag
+           str     r9
+           lbr     lineend             ; then done
+cmd_la:    ldi     0ffh                ; set logic flag
+           str     r9
+           lbr     lineend
 
 ; ****************************
 ; ***** Command M, Match *****

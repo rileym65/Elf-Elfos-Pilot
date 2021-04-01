@@ -10,6 +10,7 @@ J:*label                     - jump to labeled line
 J:expr                       - Computed jump
 J:expr,*label{,*label},{...} - On-goto style J
 K:value{,value}{,...}        - Output values as ASCII
+L:expr                       - Set logic flag based upon expr
 M:text{,text}{,$var}{,...}   - Match
 N:text                       - Equivalent to TN
 O:port,expr                  - Write to output port
@@ -53,7 +54,7 @@ Command Aliases:
 Command format:
 
 [*label] command{cond}:operands
-cond = Y | N | (expression) | (scomp)
+cond = Y | N | T | F | O | (expression) | (scomp)
 
 scomp = $var [ < | > | <= | >= | <> | = ] [ $var | "text" ]
 
@@ -116,6 +117,8 @@ useful addresses:
                        memory
   $202B       2      - Pointer to heap start.
   $202D       4      - LFSR register use by the rnd() function
+  $2031       1      - Overflow flag
+  $2032       1      - Logic flag
 
 useful vectors for machine language subroutines:
   $2044       - Set integer variable (setivar)
